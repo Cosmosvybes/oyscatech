@@ -1,6 +1,8 @@
-import { MongoClient } from 'mongodb'
-import dotenv from "dotenv";
-dotenv.config()
+// import { MongoClient } from 'mongodb'
+// import dotenv from "dotenv";
+const { MongoClient } = require('mongodb');
+const { config } = require('dotenv')
+config()
 const client = new MongoClient(process.env.MONGO_URI)
 
 
@@ -8,7 +10,6 @@ const connection = async () => {
     const connect = await client.connect();
     if (connect) {
         return 'connected to the database';
-
     }
     else {
         return 'connection not established'
@@ -18,29 +19,70 @@ const connection = async () => {
 const collection = client.db('Oyscatech').collection('administration');
 const memorandum = client.db('Oyscatech').collection('memo');
 
-const createAdmin = async () => {
-    const adminId = Math.floor(Math.random() * 98765 + 1234)
-    const admin = await collection.insertOne({ id: adminId, name: 'Alex otti', messages: [{ date: new Date().toLocaleDateString(), time: new Date().toLocaleTimeString(), details: 'We need to meet by 6pm today! ' }] });
-    return admin
+const createAdmin = async (name) => {
+    const adminId = Math.floor(Math.random() * 98765 + 1234);
+    await collection.insertOne({
+        id: adminId, name: name,
+        messages: []
+    });
+    return User(adminId)
 }
 
-const updateAdmin = async () => {
-    const admin = await collection.updateOne({ id: 36089 }, { $push: { messages: { date: new Date().toLocaleDateString(), time: new Date().toLocaleTimeString(), details: 'Join the Escos by 12 ! ' } } });
-    return admin;
+const sendMessage = async (id, message) => {
+    const messageId = Math.floor(Math.random() * 862 + 123 + 2023)
+    await collection.updateOne({ id: id },
+        {
+            $push: {
+                messages: {
+                    id: messageId,
+                    date: new Date().toLocaleDateString(),
+                    time: new Date().toLocaleTimeString(),
+                    message: message,
+                    readStatus: false
+                }
+            }
+        }
+    )
+
+    const user = User(id);
+    return user
 };
 
 
-const getAdmin = async () => {
-    const user = await collection.findOne({ id: 36089 });
+const User = async (id) => {
+    const user = await collection.findOne({ id: id });
     return user;
 
 }
 
 
-async function createMemo() {
-    const memo = await memorandum.insertOne({ heading: 'ADMISSION ONGOING', date: new Date().toLocaleDateString(), time: new Date().toLocaleTimeString(), body: 'This is to announce the admision process is open for the nds and hnds', cc: 'Registar' });
-    return memo;
+async function createMemo({ heading: heading, body: body, cc: cc }) {
+    const memoId = Math.floor(Math.random() * 862 + 123 * 2023);
+    await memorandum.insertOne({
+        id: memoId,
+        heading: heading,
+        date: new Date().toLocaleDateString(), time: new Date().toLocaleTimeString(),
+        body: body,
+        cc: cc,
+        likes: undefined
+    });
+    return getMemos()
 }
 
-const admin = await getAdmin();
-console.log(admin.messages)
+
+async function getMemos() {
+    const memos = memorandum.find({}).toArray();
+    return memos
+}
+module.exports = { createAdmin, createMemo, User, sendMessage, getMemos }
+
+// async function likeMemo(id, memoId) {
+//     const user = await User(id);
+//     const memo = await get
+//     if (user) {
+//         collection.updateOne({ memoId: memoId })
+//     }
+// }
+
+
+
