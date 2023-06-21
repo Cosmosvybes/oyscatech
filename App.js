@@ -4,9 +4,9 @@ const express = require('express');
 const { config } = require('dotenv')
 const cookie = require('cookie-parser')
 const { createDepartment, sendMessage, createMemo, User, getMemos } = require('./Logic.js');
-// const { Auth } = require('./Auth.js');
 config()
 const port = process.env.PORT
+
 
 const jwt = require('jsonwebtoken');
 const app = express();
@@ -14,7 +14,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(cors())
 app.use(cookie())
-// app.use(cookieParser(process.env.SECRET_KEY))
+
 
 
 async function Auth(req, res, next) {
@@ -30,6 +30,35 @@ async function Auth(req, res, next) {
 }
 
 
+
+app.post('/login', async (req, res) => {
+    const { id, password } = req.body
+    const user = await User(id);
+    if (user) {
+        if (user.password === password) {
+            const token = jwt.sign(user, process.env.SECRET_KEY, { expiresIn: '1d' });
+            res.cookie('token', token, { maxAge: '30000', httpOnly: true, path: '/' });
+            res.redirect('/memos')
+        }
+        else {
+            res.send({ response: 'invalid password' })
+            return;
+        }
+    }
+    else {
+        res.send({ response: 'User not found' });
+        return;
+    }
+
+});
+
+app.post('/message', async (req, res) => {
+    const { id, message } = req.body;
+    const data = await sendMessage(id, message);
+    res.send(data);
+    
+})
+
 app.get('/memos', Auth, async (req, res) => {
     const memos = await getMemos();
     res.status(200).send(memos)
@@ -41,16 +70,13 @@ app.post('/memo', async (req, res) => {
 
 });
 
-app.post('/account', async (req, res) => {
-    const account = await createDepartment(req.body);
-    res.status(200).send(account);
-});
 
 
-app.post('/login', async (req, res) => {
-    const user = await User(req.body)
-    res.cookie('token', user, { maxAge: 900000, httpOnly: true })
-    res.send(user);
+
+app.post('/account/signup', async (req, res) => {
+    const { name, password } = req.body;
+    const userAccount = await createDepartment(name, password)
+    res.send(userAccount);
 })
 
 app.listen(port, function () {

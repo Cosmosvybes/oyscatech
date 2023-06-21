@@ -1,9 +1,8 @@
 // import { MongoClient } from 'mongodb'
-// import dotenv from "dotenv";
+// import { config } from "dotenv";
 const { MongoClient } = require('mongodb');
 const { config } = require('dotenv')
-// const { Auth } = require('./Auth.js');
-const jwt = require('jsonwebtoken');
+
 config()
 const client = new MongoClient(process.env.MONGO_URI)
 
@@ -22,9 +21,16 @@ const collection = client.db('Oyscatech').collection('administration');
 const memorandum = client.db('Oyscatech').collection('memo');
 
 
-const createDepartment = async ({ name: name, password: password }) => {
+const User = async (id) => {
+    const user = await collection.findOne({ id: id })
+    return user;
+}
+
+
+
+const createDepartment = async (name, password) => {
     const departmentId = Math.floor(Math.random() * 98765 + 1234);
-    await collection.insertOne({
+    const accountID = await collection.insertOne({
         id: departmentId,
         name: name,
         password: password,
@@ -53,20 +59,7 @@ const sendMessage = async (id, message) => {
 };
 
 
-const User = async ({ id: id, password: password }) => {
-    const user = await collection.findOne({ id: id });
-    if (user) {
-        if (user.password === password) {
-            const jwtToken = jwt.sign(user, process.env.SECRET_KEY, { expiresIn: '1d' });
-            return jwtToken;
-        }
-        else { return ({ res: 'Incorrect password' }) }
-    }
-    else {
-        return ({ res: 'Account does not exist' })
-    }
 
-}
 
 
 async function createMemo({ heading: heading, body: body, cc: cc }) {
@@ -87,15 +80,10 @@ async function getMemos() {
     const memos = memorandum.find({}).toArray();
     return memos
 }
-module.exports = { createDepartment, createMemo, User, sendMessage, getMemos }
 
-// async function likeMemo(id, memoId) {
-//     const user = await User(id);
-//     const memo = await get
-//     if (user) {
-//         collection.updateOne({ memoId: memoId })
-//     }
-// }
+
+
+module.exports = { createDepartment, createMemo, User, sendMessage, getMemos }
 
 
 
