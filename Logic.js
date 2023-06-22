@@ -19,6 +19,7 @@ const connection = async () => {
 
 const collection = client.db('Oyscatech').collection('administration');
 const memorandum = client.db('Oyscatech').collection('memo');
+const likes = client.db('Oyscatech').collection('likes');
 
 
 const User = async (id) => {
@@ -72,8 +73,7 @@ async function createMemo({ heading: heading, body: body, cc: cc }) {
         heading: heading,
         date: new Date().toLocaleDateString(), time: new Date().toLocaleTimeString(),
         body: body,
-        cc: cc,
-        likes: undefined
+        cc: cc
     });
     return getMemos()
 }
@@ -86,19 +86,34 @@ async function getMemos() {
 
 
 async function readMessage(id, messageId) {
-    const readStatus = await collection.updateOne({ id: id, "messages.id": messageId},
+    const readStatus = await collection.updateOne({ id: id, "messages.id": messageId },
         {
-            $set: {
-                "messages.$.readStatus": true
-            }
-
+            $set: { "messages.$.readStatus": true }
         });
     return readStatus;
+};
+
+
+
+async function getMemo(id) {
+    const memo = await memorandum.findOne({ id: id });
+    return memo;
 }
 
 
 
-module.exports = { createDepartment, createMemo, User, sendMessage, getMemos, readMessage }
+async function likes(memo, user) {
+    const memo = await getMemo(id);
+    const user = await User(user)
+    if (memo && user) {
 
+    }
+}
+
+
+const memo = await getMemo(248929);
+console.log(memo)
+
+module.exports = { createDepartment, createMemo, User, sendMessage, getMemos, readMessage }
 
 

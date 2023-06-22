@@ -12,7 +12,8 @@ const port = process.env.PORT
 
 const jwt = require('jsonwebtoken');
 const app = express();
-app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.text())
 app.use(express.json());
 app.use(cors())
 app.use(cookie())
@@ -33,7 +34,8 @@ async function Auth(req, res, next) {
 
 
 
-app.post('/login', async (req, res) => {
+
+app.post('/account/login', async (req, res) => {
     const { id, password } = req.body
     const user = await User(id);
     if (user) {
@@ -73,20 +75,20 @@ app.post('/memo', async (req, res) => {
 });
 
 
+
+
 app.post('/account/signup', async (req, res) => {
     const { name, password } = req.body;
     const userAccount = await createDepartment(name, password)
     res.send(userAccount);
 });
 
-app.patch('/private/readmessage', async (req, res) => {
+app.patch('/private/readmessage', Auth, async (req, res) => {
     const { id, messageId } = req.body
     const status = await readMessage(id, messageId);
     res.send(status);
 
 });
-
-
 
 
 
