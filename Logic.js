@@ -41,7 +41,7 @@ const createDepartment = async (name, password) => {
 
 const sendMessage = async (id, message) => {
     const messageId = Math.floor(Math.random() * 862 + 123 + 2023)
-    await collection.updateOne({ id: id },
+    const sendMessage = await collection.updateOne({ id: id },
         {
             $push: {
                 messages: {
@@ -54,8 +54,11 @@ const sendMessage = async (id, message) => {
             }
         }
     )
-    const user = User(id);
-    return user
+
+    if (sendMessage) {
+        return "message sent succesfully "
+    }
+    else { return "message not sent try again" }
 };
 
 
@@ -82,8 +85,20 @@ async function getMemos() {
 }
 
 
+async function readMessage(id, messageId) {
+    const readStatus = await collection.updateOne({ id: id, "messages.id": messageId},
+        {
+            $set: {
+                "messages.$.readStatus": true
+            }
 
-module.exports = { createDepartment, createMemo, User, sendMessage, getMemos }
+        });
+    return readStatus;
+}
+
+
+
+module.exports = { createDepartment, createMemo, User, sendMessage, getMemos, readMessage }
 
 
 

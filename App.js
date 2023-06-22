@@ -1,9 +1,11 @@
+
+const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors')
-const express = require('express');
+
 const { config } = require('dotenv')
 const cookie = require('cookie-parser')
-const { createDepartment, sendMessage, createMemo, User, getMemos } = require('./Logic.js');
+const { createDepartment, sendMessage, createMemo, User, getMemos, readMessage } = require('./Logic.js');
 config()
 const port = process.env.PORT
 
@@ -52,12 +54,12 @@ app.post('/login', async (req, res) => {
 
 });
 
-app.post('/message', async (req, res) => {
+app.post('/private/message', async (req, res) => {
     const { id, message } = req.body;
     const data = await sendMessage(id, message);
     res.send(data);
-    
-})
+});
+
 
 app.get('/memos', Auth, async (req, res) => {
     const memos = await getMemos();
@@ -71,13 +73,22 @@ app.post('/memo', async (req, res) => {
 });
 
 
-
-
 app.post('/account/signup', async (req, res) => {
     const { name, password } = req.body;
     const userAccount = await createDepartment(name, password)
     res.send(userAccount);
-})
+});
+
+app.patch('/private/readmessage', async (req, res) => {
+    const { id, messageId } = req.body
+    const status = await readMessage(id, messageId);
+    res.send(status);
+
+});
+
+
+
+
 
 app.listen(port, function () {
     console.log(`Server running on ${port}`)
