@@ -13,7 +13,7 @@ const {
   readMessage,
 } = require("./Logic.js");
 config();
-const port = process.env.PORT;
+const port = process.env.PORT||2006;
 
 const bcrypt = require("bcrypt");
 
