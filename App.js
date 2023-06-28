@@ -13,8 +13,11 @@ const {
   readMessage,
 } = require("./Logic.js");
 config();
+
 const port = process.env.PORT || 2006;
 const path = require("path");
+
+
 const bcrypt = require("bcrypt");
 
 const jwt = require("jsonwebtoken");
