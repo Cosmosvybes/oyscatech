@@ -42,7 +42,7 @@ const createDepartment = async (name, password) => {
 };
 
 //sendMessage func
-const sendMessage = async (id, message) => {
+const sendMessage = async (id, message, sender) => {
   const messageId = Math.floor(Math.random() * 862 + 123 + 2023);
 
   await messages.insertOne({
@@ -51,6 +51,7 @@ const sendMessage = async (id, message) => {
     time: new Date().toLocaleTimeString(),
     message: message,
     readStatus: false,
+    sender: sender,
   });
 
   const sendMessage = await collection.updateOne(
@@ -63,6 +64,7 @@ const sendMessage = async (id, message) => {
           time: new Date().toLocaleTimeString(),
           message: message,
           readStatus: false,
+          sender: sender,
         },
       },
     }
@@ -74,6 +76,8 @@ const sendMessage = async (id, message) => {
     return "message not sent try again";
   }
 };
+
+
 
 async function createMemo({
   cc: cc,

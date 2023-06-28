@@ -16,7 +16,6 @@ config();
 const port = process.env.PORT;
 
 const bcrypt = require("bcrypt");
-const saltRounds = 10;
 
 const jwt = require("jsonwebtoken");
 
@@ -26,18 +25,26 @@ app.use(express.json());
 app.use(cors());
 app.use(cookie());
 
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
+  res.setHeader("Access-Control-Allow-Credientials", "true");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, PATCH");
+  res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+  next();
+});
+
 async function Auth(req, res, next) {
   const token = req.cookies.token;
   if (!token) {
     res.send({ response: "unauthorized user, sign in to your account" });
-  } else {
-    const data = jwt.verify(token, process.env.SECRET_KEY);
-    req.user = data;
-    next();
+    return;
   }
+  const data = jwt.verify(token, process.env.SECRET_KEY);
+  req.user = data;
+  next();
 }
 
-app.post("/account/login", async (req, res) => {
+app.post("/api/account/login", async (req, res) => {
   const { name, password } = req.body;
   const user = await User(name);
   if (user) {
@@ -47,37 +54,51 @@ app.post("/account/login", async (req, res) => {
       res.cookie("token", token, {
         maxAge: "30000",
         httpOnly: true,
-        path: "/",
       });
-      res.redirect("/memos");
-    
+      res.cookie("token", token, {
+        maxAge: 60000 * 100,
+        httpOnly: true,
+        path: "/sugconnect",
+      }); //
+      res.cookie("token", token, {
+        maxAge: 60000 * 100,
+        httpOnly: true,
+        path: "/readmessage",
+      }); //parsing cookie for the home page route
+      res.cookie("token", token, {
+        maxAge: 60000 * 100,
+        httpOnly: true,
+        path: "/memos",
+      });
+
+      res.redirect(302, "/api/memos");
     } else {
-      res.send({ response: "invalid password" });
+      res.send({ response: "invalid password", signinStatus: false });
       return;
     }
   } else {
-    res.send({ response: "User not found" });
+    res.send({ response: "User not found", signinStatus: false });
     return;
   }
 });
 
-app.post("/private/message", async (req, res) => {
-  const { id, message } = req.body;
-  const data = await sendMessage(id, message);
+app.post("/api/private/message", async (req, res) => {
+  const { id, message, sender } = req.body;
+  const data = await sendMessage(id, message, sender);
   res.send(data);
 });
 
-app.get("/memos", Auth, async (req, res) => {
+app.get("/api/memos", Auth, async (req, res) => {
   const memos = await getMemos();
-  res.status(200).send(memos);
+  res.send(memos);
 });
 
-app.post("/memo", async (req, res) => {
+app.post("/api/memo", async (req, res) => {
   const data = await createMemo(req.body);
   res.status(200).send(data);
 });
 
-app.post("/account/signup", async (req, res) => {
+app.post("/api/account/signup", async (req, res) => {
   const { name, password } = req.body;
   try {
     const existUser = await User(name);
@@ -92,9 +113,7 @@ app.post("/account/signup", async (req, res) => {
   }
 });
 
-
-
-app.patch("/private/readmessage", Auth, async (req, res) => {
+app.patch("/api/private/readmessage", Auth, async (req, res) => {
   const { id, messageId } = req.body;
   const status = await readMessage(id, messageId);
   res.send(status);
