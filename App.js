@@ -13,8 +13,8 @@ const {
   readMessage,
 } = require("./Logic.js");
 config();
-const port = process.env.PORT;
-
+const port = process.env.PORT || 2006;
+const path = require("path");
 const bcrypt = require("bcrypt");
 
 const jwt = require("jsonwebtoken");
@@ -33,6 +33,8 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(express.static(path.join(__dirname, "dist")));
+
 async function Auth(req, res, next) {
   const token = req.cookies.token;
   if (!token) {
@@ -43,6 +45,16 @@ async function Auth(req, res, next) {
   req.user = data;
   next();
 }
+
+// app.get("/home", (req, res) => {
+//   res.sendFile(path.join(__dirname, "dist", "index.html"));
+// });
+
+app.get("/api/user/", Auth, async (req, res) => {
+  const name = req.user.name
+  const user = await User(name);
+  res.json(user);
+});
 
 app.post("/api/account/login", async (req, res) => {
   const { name, password } = req.body;
@@ -70,8 +82,9 @@ app.post("/api/account/login", async (req, res) => {
         httpOnly: true,
         path: "/memos",
       });
+      res.setHeader("Content-Type", "text/html");
 
-      res.redirect(302, "/api/memos");
+      res.redirect(302, "/api/user/");
     } else {
       res.send({ response: "invalid password", signinStatus: false });
       return;
@@ -90,7 +103,7 @@ app.post("/api/private/message", async (req, res) => {
 
 app.get("/api/memos", Auth, async (req, res) => {
   const memos = await getMemos();
-  res.send(memos);
+  res.json(memos);
 });
 
 app.post("/api/memo", async (req, res) => {
