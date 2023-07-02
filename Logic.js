@@ -22,46 +22,90 @@ const memorandum = client.db("Oyscatech").collection("memo");
 const messages = client.db("Oyscatech").collection("messages");
 
 const User = async (name) => {
-  const user = await collection.findOne({ name: name });
+  const user = await collection.findOne({ username: name });
   return user;
+};
+
+//get all user messages
+const sentMessages = async (sender) => {
+  const allMessage = await messages.findOne({ sender: sender });
+  return allMessage;
 };
 
 //createDepartmemnt
 
-const createDepartment = async (name, password) => {
+const createUser = async (name, username, password, email) => {
   const departmentId = Math.floor(Math.random() * 98765 + 1234);
   const encryptedPassword = await bcrypt.hash(password, saltRounds);
   await collection.insertOne({
     id: departmentId,
     name: name,
+    username: username,
     password: encryptedPassword,
+    email: email,
     messages: [],
     outbox: [],
   });
-  return User(name);
+  return User(username);
 };
 
 //sendMessage func
-const sendMessage = async (id, message, sender) => {
+const sendMessage = async (username, message, sender) => {
   const messageId = Math.floor(Math.random() * 862 + 123 + 2023);
 
   await messages.insertOne({
     id: messageId,
-    date: new Date().toLocaleDateString(),
-    time: new Date().toLocaleTimeString(),
+    date: new Date().toLocaleString("en-Us", {
+      month: "long",
+      day: "numeric",
+      minute: "numeric",
+      seconds: "numeric",
+      hour12: true,
+      hour: "numeric",
+      year: "2-digit",
+    }),
     message: message,
     readStatus: false,
     sender: sender,
   });
 
+  await collection.updateOne(
+    { username: sender },
+    {
+      $push: {
+        outbox: {
+          id: messageId,
+          date: new Date().toLocaleString("en-Us", {
+            month: "long",
+            day: "numeric",
+            minute: "numeric",
+            seconds: "numeric",
+            hour12: true,
+            hour: "numeric",
+            year: "2-digit",
+          }),
+          message: message,
+          readStatus: false,
+        },
+      },
+    }
+  );
+
   const sendMessage = await collection.updateOne(
-    { id: id },
+    { username: username },
     {
       $push: {
         messages: {
           id: messageId,
-          date: new Date().toLocaleDateString(),
-          time: new Date().toLocaleTimeString(),
+          date: new Date().toLocaleString("en-Us", {
+            month: "long",
+            day: "numeric",
+            minute: "numeric",
+            seconds: "numeric",
+            hour12: true,
+            hour: "numeric",
+            year: "2-digit",
+          }),
           message: message,
           readStatus: false,
           sender: sender,
@@ -71,13 +115,11 @@ const sendMessage = async (id, message, sender) => {
   );
 
   if (sendMessage) {
-    return "message succesfully sent~~";
+    return "message succesfully sent";
   } else {
     return "message not sent try again";
   }
 };
-
-
 
 async function createMemo({
   cc: cc,
@@ -92,8 +134,15 @@ async function createMemo({
     heading: heading,
     from: from,
     to: to,
-    date: new Date().toLocaleDateString(),
-    time: new Date().toLocaleTimeString(),
+    date: new Date().toLocaleString("en-Us", {
+      month: "long",
+      day: "numeric",
+      minute: "numeric",
+      seconds: "numeric",
+      hour12: true,
+      hour: "numeric",
+      year: "2-digit",
+    }),
     body: body,
     cc: cc,
   });
@@ -105,16 +154,30 @@ async function getMemos() {
   return memos;
 }
 
-async function readMessage(id, messageId) {
+async function readMessage(messageId, recipient) {
+  const sender = await messages.findOne({ id: messageId });
+
   await messages.updateOne({ id: messageId }, { $set: { readStatus: true } });
 
-  const readStatus = await collection.updateOne(
-    { id: id, "messages.id": messageId },
+  await collection.updateOne(
+    {
+      username: sender.sender,
+      "outbox.id": messageId,
+    },
+    {
+      $set: {
+        "outbox.$.readStatus": true,
+      },
+    }
+  );
+
+  const updateStatus = await collection.updateOne(
+    { username: recipient, "messages.id": messageId },
     {
       $set: { "messages.$.readStatus": true },
     }
   );
-  return readStatus;
+  return updateStatus;
 }
 
 async function getMemo(id) {
@@ -123,7 +186,8 @@ async function getMemo(id) {
 }
 
 module.exports = {
-  createDepartment,
+  createUser,
+  sentMessages,
   createMemo,
   User,
   sendMessage,

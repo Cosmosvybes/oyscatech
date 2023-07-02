@@ -1,26 +1,25 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
 
 const { config } = require("dotenv");
 const cookie = require("cookie-parser");
 const {
-  createDepartment,
   sendMessage,
   createMemo,
   User,
   getMemos,
   readMessage,
+  sentMessages,
+  createUser,
 } = require("./Logic.js");
 config();
 
 const port = process.env.PORT || 2006;
 const path = require("path");
 
-
 const bcrypt = require("bcrypt");
-
-const jwt = require("jsonwebtoken");
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -42,7 +41,6 @@ async function Auth(req, res, next) {
   const token = req.cookies.token;
   if (!token) {
     res.send({ response: "unauthorized user, sign in to your account" });
-    return;
   }
   const data = jwt.verify(token, process.env.SECRET_KEY);
   req.user = data;
@@ -53,41 +51,33 @@ app.get("/home", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
-app.get("/api/user/", Auth, async (req, res) => {
-  const name = req.user.name
+app.get("/api/user", Auth, async (req, res) => {
+  const name = req.user.payload;
   const user = await User(name);
   res.json(user);
 });
 
-app.post("/api/account/login", async (req, res) => {
-  const { name, password } = req.body;
-  const user = await User(name);
+app.get("/api/mymessage", Auth, async (req, res) => {
+  const messages = await sentMessages(req.user.name);
+  res.send(messages);
+});
+
+app.post("/api/login", async (req, res) => {
+  const { username, password } = req.body;
+  const user = await User(username);
   if (user) {
     const matchPass = await bcrypt.compare(password, user.password);
     if (matchPass) {
-      const token = jwt.sign(user, process.env.SECRET_KEY, { expiresIn: "1d" });
-      res.cookie("token", token, {
-        maxAge: "30000",
+      const jwt_ = jwt.sign({ payload: user.username }, process.env.SECRET_KEY, {
+        expiresIn: "1d",
+      });
+      res.cookie("token", jwt_, {
+        maxAge: "900000",
         httpOnly: true,
       });
-      res.cookie("token", token, {
-        maxAge: 60000 * 100,
-        httpOnly: true,
-        path: "/sugconnect",
-      }); //
-      res.cookie("token", token, {
-        maxAge: 60000 * 100,
-        httpOnly: true,
-        path: "/readmessage",
-      }); //parsing cookie for the home page route
-      res.cookie("token", token, {
-        maxAge: 60000 * 100,
-        httpOnly: true,
-        path: "/memos",
-      });
-      res.setHeader("Content-Type", "text/html");
 
-      res.redirect(302, "/api/user/");
+      res.setHeader("Content-Type", "text/html");
+      res.redirect(302, "/api/user");
     } else {
       res.send({ response: "invalid password", signinStatus: false });
       return;
@@ -98,9 +88,9 @@ app.post("/api/account/login", async (req, res) => {
   }
 });
 
-app.post("/api/private/message", async (req, res) => {
-  const { id, message, sender } = req.body;
-  const data = await sendMessage(id, message, sender);
+app.post("/api/private/message", Auth, async (req, res) => {
+  const { username, message } = req.body;
+  const data = await sendMessage(username, message, req.user.payload);
   res.send(data);
 });
 
@@ -109,30 +99,40 @@ app.get("/api/memos", Auth, async (req, res) => {
   res.json(memos);
 });
 
-app.post("/api/memo", async (req, res) => {
+app.post("/api/memo", Auth, async (req, res) => {
   const data = await createMemo(req.body);
   res.status(200).send(data);
 });
 
-app.post("/api/account/signup", async (req, res) => {
-  const { name, password } = req.body;
+app.post("/api/signup", async (req, res) => {
+  const { name, username, password, email } = req.body;
   try {
-    const existUser = await User(name);
+    const existUser = await User(username);
     if (existUser) {
       res.send({ response: "Account already exist" });
     } else {
-      const newAccount = await createDepartment(name, password);
+      const newAccount = await createUser(
+        name,
+        username,
+        password,
+        email
+      );
       res.send({ resposne: "Success, Welcome on board", data: newAccount });
     }
   } catch (error) {
-    res.send("Registration not successful, try again");
+    res.send(error);
   }
 });
 
 app.patch("/api/private/readmessage", Auth, async (req, res) => {
-  const { id, messageId } = req.body;
-  const status = await readMessage(id, messageId);
+  const { messageId } = req.body;
+  const status = await readMessage(messageId, req.user.payload);
   res.send(status);
+});
+
+app.get("/api/signout", (req, res) => {
+  res.clearCookie("token");
+  res.redirect(301, "/");
 });
 
 app.listen(port, function () {
