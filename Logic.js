@@ -1,4 +1,4 @@
-// import { MongoClient } from 'mongodb'
+// import { MongoClient } from "mongodb";
 // import { config } from "dotenv";
 const { MongoClient } = require("mongodb");
 const { config } = require("dotenv");
@@ -8,18 +8,10 @@ const saltRounds = 10;
 config();
 const client = new MongoClient(process.env.MONGO_URI);
 
-const connection = async () => {
-  const connect = await client.connect();
-  if (connect) {
-    return "connected to the database";
-  } else {
-    return "connection not established";
-  }
-};
-
 const collection = client.db("Oyscatech").collection("administration");
 const memorandum = client.db("Oyscatech").collection("memo");
 const messages = client.db("Oyscatech").collection("messages");
+const generalPost = client.db("Oyscatech").collection("posts");
 
 const User = async (name) => {
   const user = await collection.findOne({ username: name });
@@ -124,9 +116,10 @@ const sendMessage = async (username, message, sender) => {
 async function createMemo({
   cc: cc,
   from: from,
+  to: to,
   heading: heading,
   body: body,
-  to: to,
+  type: type,
 }) {
   const memoId = Math.floor(Math.random() * 862 + 123 * 2023);
   await memorandum.insertOne({
@@ -185,12 +178,65 @@ async function getMemo(id) {
   return memo;
 }
 
+async function createPost(sender, body) {
+  const id = Math.floor(Math.random() * 1234 * 9983);
+  const post = await generalPost.insertOne({
+    id: id,
+    body: body,
+    sender: sender,
+    date: new Date().toLocaleString("en-Us", {
+      year: "2-digit",
+      day: "numeric",
+      month: "short",
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+    }),
+    likes: [],
+    comments: [],
+  });
+  return getPosts();
+}
+
+const findPost = async (id) => {
+  const post = await generalPost.findOne({ id: id });
+  return post;
+};
+
+const getPosts = async () => {
+  const allPost = await generalPost.find({}).toArray();
+  return allPost;
+};
+
+const likePost = async (user, id) => {
+  const post = await findPost(id);
+  const likes = post.likes;
+  if (likes.includes(user)) {
+    await generalPost.updateOne({ id: id }, { $pull: { likes: user } });
+  } else {
+    await generalPost.updateOne({ id: id }, { $push: { likes: user } });
+  }
+};
+
+const commentPost = async (user, postId, message) => {
+  const comment = await generalPost.updateOne(
+    { id: postId },
+    { $push: { comments: { user: user, message: message } } }
+  );
+  return comment;
+};
+
 module.exports = {
+  commentPost,
+  likePost,
+  commentPost,
+  getPosts,
+  createPost,
   createUser,
   sentMessages,
   createMemo,
+  readMessage,
   User,
   sendMessage,
   getMemos,
-  readMessage,
 };

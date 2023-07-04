@@ -13,7 +13,12 @@ const {
   readMessage,
   sentMessages,
   createUser,
+  createPost,
+  likePost,
+  commentPost,
+  getPosts,
 } = require("./Logic.js");
+
 config();
 
 const port = process.env.PORT || 2006;
@@ -68,9 +73,13 @@ app.post("/api/login", async (req, res) => {
   if (user) {
     const matchPass = await bcrypt.compare(password, user.password);
     if (matchPass) {
-      const jwt_ = jwt.sign({ payload: user.username }, process.env.SECRET_KEY, {
-        expiresIn: "1d",
-      });
+      const jwt_ = jwt.sign(
+        { payload: user.username },
+        process.env.SECRET_KEY,
+        {
+          expiresIn: "1d",
+        }
+      );
       res.cookie("token", jwt_, {
         maxAge: "900000",
         httpOnly: true,
@@ -111,12 +120,7 @@ app.post("/api/signup", async (req, res) => {
     if (existUser) {
       res.send({ response: "Account already exist" });
     } else {
-      const newAccount = await createUser(
-        name,
-        username,
-        password,
-        email
-      );
+      const newAccount = await createUser(name, username, password, email);
       res.send({ resposne: "Success, Welcome on board", data: newAccount });
     }
   } catch (error) {
@@ -128,6 +132,36 @@ app.patch("/api/private/readmessage", Auth, async (req, res) => {
   const { messageId } = req.body;
   const status = await readMessage(messageId, req.user.payload);
   res.send(status);
+});
+
+app.post("/api/post", Auth, async (req, res) => {
+  const { body } = req.body;
+  try {
+    const newPost = await createPost(req.user.payload, body);
+    if (!newPost) {
+      throw new Error("internal Error , unabale to create post");
+    } else {
+      res.send(newPost);
+    }
+  } catch (error) {
+    res.send(error);
+  }
+});
+
+app.patch("/api/like", Auth, async (req, res) => {
+  const { postId } = req.body;
+  await likePost(req.user.payload, postId);
+});
+
+app.post("/api/comment", Auth, async (req, res) => {
+  const { postId, message } = req.body;
+  const comment = await commentPost(req.user.payload, postId, message);
+  res.send(comment);
+});
+
+app.get("/api/post", async (req, res) => {
+  const allPosts = await getPosts();
+  res.send(allPosts);
 });
 
 app.get("/api/signout", (req, res) => {
