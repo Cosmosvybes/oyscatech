@@ -13,11 +13,8 @@ const {
   readMessage,
   sentMessages,
   createUser,
-  createPost,
-  likePost,
-  commentPost,
-  getPosts,
 } = require("./Logic.js");
+const { daVinci } = require("./Davinci.js");
 
 config();
 
@@ -97,10 +94,12 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
+app.patch("/api/verification", (req, res) => {});
+
 app.post("/api/private/message", Auth, async (req, res) => {
   const { username, message } = req.body;
   const data = await sendMessage(username, message, req.user.payload);
-  res.send(data);
+  res.send({ message: data });
 });
 
 app.get("/api/memos", Auth, async (req, res) => {
@@ -108,20 +107,33 @@ app.get("/api/memos", Auth, async (req, res) => {
   res.json(memos);
 });
 
+app.get("/api/admin", Auth, (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
+});
+
 app.post("/api/memo", Auth, async (req, res) => {
   const data = await createMemo(req.body);
-  res.status(200).send(data);
+  res.send(data);
 });
 
 app.post("/api/signup", async (req, res) => {
-  const { name, username, password, email } = req.body;
+  const { name, email, username, password, role } = req.body;
   try {
     const existUser = await User(username);
     if (existUser) {
       res.send({ response: "Account already exist" });
     } else {
-      const newAccount = await createUser(name, username, password, email);
-      res.send({ resposne: "Success, Welcome on board", data: newAccount });
+      const newAccount = await createUser(
+        name,
+        username,
+        password,
+        email,
+        role
+      );
+      res.send({
+        response: "sucess! You have succesfully registered your account 🤩",
+        data: newAccount,
+      });
     }
   } catch (error) {
     res.send(error);
@@ -134,34 +146,14 @@ app.patch("/api/private/readmessage", Auth, async (req, res) => {
   res.send(status);
 });
 
-app.post("/api/post", Auth, async (req, res) => {
-  const { body } = req.body;
+app.post("/api/askvinci", async (req, res) => {
+  const { question } = req.body;
   try {
-    const newPost = await createPost(req.user.payload, body);
-    if (!newPost) {
-      throw new Error("internal Error , unabale to create post");
-    } else {
-      res.send(newPost);
-    }
+    const answer = await daVinci(question);
+    res.send(answer);
   } catch (error) {
     res.send(error);
   }
-});
-
-app.patch("/api/like", Auth, async (req, res) => {
-  const { postId } = req.body;
-  await likePost(req.user.payload, postId);
-});
-
-app.post("/api/comment", Auth, async (req, res) => {
-  const { postId, message } = req.body;
-  const comment = await commentPost(req.user.payload, postId, message);
-  res.send(comment);
-});
-
-app.get("/api/post", async (req, res) => {
-  const allPosts = await getPosts();
-  res.send(allPosts);
 });
 
 app.get("/api/signout", (req, res) => {

@@ -26,15 +26,23 @@ const sentMessages = async (sender) => {
 
 //createDepartmemnt
 
-const createUser = async (name, username, password, email) => {
-  const departmentId = Math.floor(Math.random() * 98765 + 1234);
+const createUser = async (
+  name,
+  username,
+  password,
+  email,
+  role
+) => {
+  const referrenceId = Math.floor(Math.random() * 98765 + 1234);
   const encryptedPassword = await bcrypt.hash(password, saltRounds);
   await collection.insertOne({
-    id: departmentId,
+    id: referrenceId,
     name: name,
     username: username,
     password: encryptedPassword,
     email: email,
+    role: role,
+    verification: false,
     messages: [],
     outbox: [],
   });
@@ -117,13 +125,15 @@ async function createMemo({
   cc: cc,
   from: from,
   to: to,
+  ref: ref,
   heading: heading,
   body: body,
-  type: type,
 }) {
   const memoId = Math.floor(Math.random() * 862 + 123 * 2023);
   await memorandum.insertOne({
     id: memoId,
+    ref: ref,
+    type: "INTERNAL MEMO",
     heading: heading,
     from: from,
     to: to,
