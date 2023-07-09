@@ -42,21 +42,31 @@ app.use(express.static(path.join(__dirname, "dist")));
 async function Auth(req, res, next) {
   const token = req.cookies.token;
   if (!token) {
-    res.send({ response: "unauthorized user, sign in to your account" });
+    res.redirect(302, "/home");
+    // res.send({ response: "unauthorized user, sign in to your account" });
   }
   const data = jwt.verify(token, process.env.SECRET_KEY);
   req.user = data;
   next();
 }
 
-app.get("/home", (req, res) => {
+app.get("/home", Auth,(req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
+
+
+
 app.get("/api/user", Auth, async (req, res) => {
   const name = req.user.payload;
-  const user = await User(name);
-  res.json(user);
+  try {
+    const user = await User(name);
+    if (user) {
+      res.json(user);
+    }
+  } catch (error) {
+    res.send(error);
+  }
 });
 
 app.get("/api/mymessage", Auth, async (req, res) => {
