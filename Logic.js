@@ -26,13 +26,7 @@ const sentMessages = async (sender) => {
 
 //createDepartmemnt
 
-const createUser = async (
-  name,
-  username,
-  password,
-  email,
-  role
-) => {
+const createUser = async (name, username, password, email, role) => {
   const referrenceId = Math.floor(Math.random() * 98765 + 1234);
   const encryptedPassword = await bcrypt.hash(password, saltRounds);
   await collection.insertOne({
@@ -130,10 +124,10 @@ async function createMemo({
   body: body,
 }) {
   const memoId = Math.floor(Math.random() * 862 + 123 * 2023);
-  await memorandum.insertOne({
+  const memo = await memorandum.insertOne({
     id: memoId,
     ref: ref,
-    type: "INTERNAL MEMO",
+    type: "INTERNAL MEMORANDUM",
     heading: heading,
     from: from,
     to: to,
@@ -149,7 +143,11 @@ async function createMemo({
     body: body,
     cc: cc,
   });
-  return getMemos();
+  if (memo) {
+    return "memo successfully created";
+  } else {
+    return "internal error, try again ";
+  }
 }
 
 async function getMemos() {
