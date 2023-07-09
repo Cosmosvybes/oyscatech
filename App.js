@@ -49,7 +49,9 @@ app.use(express.static(path.join(__dirname, "dist")));
   next();
 }
 
-
+app.get("/home",  (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
+});
 
 app.get("/api/user", Auth, async (req, res) => {
   const name = req.user.payload;
