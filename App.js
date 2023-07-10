@@ -39,8 +39,8 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, "dist")));
 
- async function Auth(req, res, next) {
-  const token =  req.cookies.token;
+async function Auth(req, res, next) {
+  const token = req.cookies.token;
   if (!token) {
     res.send({ response: "unauthorized user, sign in to your account" });
   }
@@ -49,7 +49,7 @@ app.use(express.static(path.join(__dirname, "dist")));
   next();
 }
 
-app.get("/home",  (req, res) => {
+app.get("/home", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
@@ -86,6 +86,7 @@ app.post("/api/login", async (req, res) => {
       res.cookie("token", jwt_, {
         maxAge: "900000",
         httpOnly: true,
+        secure: true,
       });
 
       res.setHeader("Content-Type", "text/html");
