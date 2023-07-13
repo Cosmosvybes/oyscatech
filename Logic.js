@@ -14,7 +14,7 @@ const messages = client.db("Oyscatech").collection("messages");
 const generalPost = client.db("Oyscatech").collection("posts");
 
 const User = async (name) => {
-  const user = await collection.findOne({ username: name });
+  const user = await collection.findOne({ name: name });
   return user;
 };
 
@@ -234,7 +234,53 @@ const commentPost = async (user, postId, message) => {
   return comment;
 };
 
+function personel(name, password, role) {
+  return {
+    name,
+    role,
+    connects: new Array(),
+    joinAdmin: async function () {
+      let encryptedPassword = await bcrypt.hash(password, saltRounds);
+      const newMemeber = await collection.insertOne({
+        id: Math.floor(Math.random() * 2023 + 2321),
+        name: this.name,
+        role: this.role,
+        password: encryptedPassword,
+        connects: this.connects,
+      });
+      return newMemeber;
+    },
+
+    addCircle: async function (user) {
+      const newUser = await collection.updateOne(
+        { id: this.id },
+        { $push: { connects: user } }
+      );
+      return newUser;
+    },
+    findConnect: async function (id) {
+      let user = await collection.findOne({ id: this.id });
+      let allConnects = user.connects;
+      let connect = allConnects.find((user) => user.id === id);
+      let response = connect
+        ? `${connect.name}found`
+        : "The user you sought for is not part of your connects";
+      return response;
+    },
+  };
+}
+// const Dean = personel(1, "onike", "Dean");
+// // const newAdmin = await Dean.joinAdmin();
+// // const newCircle = await Dean.addCircle({
+// //   id: 2,
+// //   name: "Adewale ayomide ",
+// //   role: "HOD COMPUTER",
+// // });
+// const allConnects = await Dean.findConnect(2);
+// console.log(allConnects);
+
 module.exports = {
+  personel,
   commentPost,
   likePost,
   commentPost,

@@ -13,6 +13,7 @@ const {
   readMessage,
   sentMessages,
   createUser,
+  personel,
 } = require("./Logic.js");
 const { daVinci } = require("./Davinci.js");
 
@@ -39,8 +40,9 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, "dist")));
 
-async function Auth(req, res, next) {
-  const token = req.cookies.token;
+function Auth(req, res, next) {
+  const token = req.cookies.myToken;
+  console.log(token);
   if (!token) {
     res.send({ response: "unauthorized user, sign in to your account" });
   }
@@ -54,15 +56,15 @@ app.get("/home", (req, res) => {
 });
 
 app.get("/api/user", Auth, async (req, res) => {
-  const name = req.user.payload;
-  try {
-    const user = await User(name);
-    if (user) {
-      res.json(user);
-    }
-  } catch (error) {
-    res.send(error);
-  }
+  console.log(req.user);
+  // try {
+  //   const user = await User(name);
+  //   if (user) {
+  //     res.json(user);
+  //   }
+  // } catch (error) {
+  //   res.send(error);
+  // }
 });
 
 app.get("/api/mymessage", Auth, async (req, res) => {
@@ -71,26 +73,18 @@ app.get("/api/mymessage", Auth, async (req, res) => {
 });
 
 app.post("/api/login", async (req, res) => {
-  const { username, password } = req.body;
-  const user = await User(username);
+  const { name, password } = req.body;
+  const user = await User(name);
   if (user) {
     const matchPass = await bcrypt.compare(password, user.password);
     if (matchPass) {
-      const jwt_ = jwt.sign(
-        { payload: user.username },
-        process.env.SECRET_KEY,
-        {
-          expiresIn: "1d",
-        }
-      );
-      res.cookie("token", jwt_, {
-        maxAge: "900000",
-        httpOnly: true,
-        secure: true,
+      const jwt_ = jwt.sign({ payload: user }, process.env.SECRET_KEY, {
+        expiresIn: "2 days",
       });
-
-      res.setHeader("Content-Type", "text/html");
+      res.cookie("userToken", jwt_, { maxAge: 900000, path: "/api/user" });
+      res.setHeader("Content-Type", "Application/json");
       res.redirect(302, "/api/user");
+      // res.send(jwt_);
     } else {
       res.send({ response: "invalid password", signinStatus: false });
       return;
@@ -166,6 +160,12 @@ app.post("/api/askvinci", async (req, res) => {
 app.get("/api/signout", (req, res) => {
   res.clearCookie("token");
   res.redirect(301, "/");
+});
+
+app.post("/api/register/personel", async (req, res) => {
+  const user = personel("Ololade", "asakemusik", "Student");
+  const regStatus = await user.joinAdmin();
+  res.send(regStatus);
 });
 
 app.listen(port, function () {
