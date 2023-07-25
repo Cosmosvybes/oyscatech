@@ -1,8 +1,7 @@
 {
   "name": "libracy",
   "version": "1.0.0",
-  "description": "",
-  "main": "",
+  "main": "App.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -33,5 +32,14 @@
     "@types/cookie-parser": "^1.4.3",
     "@types/cors": "^2.8.13",
     "@types/express": "^4.17.17"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cosmosvybes/oyscatech.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Cosmosvybes/oyscatech/issues"
+  },
+  "homepage": "https://github.com/Cosmosvybes/oyscatech#readme",
+  "description": ""
 }

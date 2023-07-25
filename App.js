@@ -4,7 +4,7 @@ const cors = require("cors");
 const jwt = require("jsonwebtoken");
 
 const { config } = require("dotenv");
-const cookie = require("cookie-parser");
+const cookieParser = require("cookie-parser");
 const {
   sendMessage,
   createMemo,
@@ -13,7 +13,10 @@ const {
   readMessage,
   sentMessages,
   createUser,
-  personel,
+  addUser,
+  mentionUser,
+  createAuthority,
+  getAccounts,
 } = require("./Logic.js");
 const { daVinci } = require("./Davinci.js");
 
@@ -28,7 +31,7 @@ const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cors());
-app.use(cookie());
+app.use(cookieParser());
 
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
@@ -41,13 +44,13 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, "dist")));
 
 function Auth(req, res, next) {
-  const token = req.cookies.myToken;
-  console.log(token);
+  const token = req.cookies.userToken;
   if (!token) {
     res.send({ response: "unauthorized user, sign in to your account" });
   }
   const data = jwt.verify(token, process.env.SECRET_KEY);
   req.user = data;
+
   next();
 }
 
@@ -56,15 +59,15 @@ app.get("/home", (req, res) => {
 });
 
 app.get("/api/user", Auth, async (req, res) => {
-  console.log(req.user);
-  // try {
-  //   const user = await User(name);
-  //   if (user) {
-  //     res.json(user);
-  //   }
-  // } catch (error) {
-  //   res.send(error);
-  // }
+  const name = req.user.payload;
+  try {
+    const user = await User(name);
+    if (user) {
+      res.json(user);
+    }
+  } catch (error) {
+    res.send(error);
+  }
 });
 
 app.get("/api/mymessage", Auth, async (req, res) => {
@@ -73,18 +76,23 @@ app.get("/api/mymessage", Auth, async (req, res) => {
 });
 
 app.post("/api/login", async (req, res) => {
-  const { name, password } = req.body;
-  const user = await User(name);
+  const { username, password } = req.body;
+  const user = await User(username);
   if (user) {
     const matchPass = await bcrypt.compare(password, user.password);
     if (matchPass) {
-      const jwt_ = jwt.sign({ payload: user }, process.env.SECRET_KEY, {
-        expiresIn: "2 days",
-      });
-      res.cookie("userToken", jwt_, { maxAge: 900000, path: "/api/user" });
-      res.setHeader("Content-Type", "Application/json");
+      const jwt_ = jwt.sign(
+        {
+          payload: user.username,
+        },
+        process.env.SECRET_KEY,
+        {
+          expiresIn: "2 days",
+        }
+      );
+      res.cookie("userToken", jwt_, { maxAge: 9000000, path: "/api/" });
+      res.setHeader("Content-Type", "Text/html");
       res.redirect(302, "/api/user");
-      // res.send(jwt_);
     } else {
       res.send({ response: "invalid password", signinStatus: false });
       return;
@@ -94,8 +102,6 @@ app.post("/api/login", async (req, res) => {
     return;
   }
 });
-
-app.patch("/api/verification", (req, res) => {});
 
 app.post("/api/private/message", Auth, async (req, res) => {
   const { username, message } = req.body;
@@ -119,21 +125,17 @@ app.post("/api/memo", Auth, async (req, res) => {
 
 app.post("/api/signup", async (req, res) => {
   const { name, email, username, password, role } = req.body;
+  let registeredRoles = await getAccounts();
+  let existRole = registeredRoles.find((user) => user.role == role);
+
   try {
     const existUser = await User(username);
     if (existUser) {
-      res.send({ response: "Account already exist" });
+      res.send({ response: "username is taken" });
     } else {
-      const newAccount = await createUser(
-        name,
-        username,
-        password,
-        email,
-        role
-      );
+      let result = await createUser(name, username, password, email, role);
       res.send({
-        response: "sucess! You have succesfully registered your account 🤩",
-        data: newAccount,
+        response: result,
       });
     }
   } catch (error) {
@@ -157,15 +159,31 @@ app.post("/api/askvinci", async (req, res) => {
   }
 });
 
-app.get("/api/signout", (req, res) => {
-  res.clearCookie("token");
-  res.redirect(301, "/");
+app.patch("/api/add", Auth, async (req, res) => {
+  const { connectName, role } = req.body;
+  const name = req.user.payload;
+  try {
+    const addStatus = await addUser(name, connectName, role);
+    res.send({ response: addStatus });
+  } catch (error) {
+    res.send(error);
+  }
 });
 
-app.post("/api/register/personel", async (req, res) => {
-  const user = personel("Ololade", "asakemusik", "Student");
-  const regStatus = await user.joinAdmin();
-  res.send(regStatus);
+app.post("/api/authorities/signup", async (req, res) => {
+  const { name, role } = req.body;
+  const status = await createAuthority(name, role);
+  res.send(status);
+});
+
+app.get("/api/admins", async (req, res) => {
+  const accounts = await getAccounts();
+  res.send(accounts);
+});
+
+app.patch("/api/signout", Auth, (req, res) => {
+  res.clearCookie("userToken");
+  res.redirect(302, "/");
 });
 
 app.listen(port, function () {

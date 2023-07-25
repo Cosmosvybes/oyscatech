@@ -3,6 +3,7 @@
 const { MongoClient } = require("mongodb");
 const { config } = require("dotenv");
 const bcrypt = require("bcrypt");
+const e = require("express");
 const saltRounds = 10;
 
 config();
@@ -12,9 +13,10 @@ const collection = client.db("Oyscatech").collection("administration");
 const memorandum = client.db("Oyscatech").collection("memo");
 const messages = client.db("Oyscatech").collection("messages");
 const generalPost = client.db("Oyscatech").collection("posts");
+const authorities = client.db("Oyscatech").collection("authorities");
 
 const User = async (name) => {
-  const user = await collection.findOne({ name: name });
+  const user = await collection.findOne({ username: name });
   return user;
 };
 
@@ -24,11 +26,19 @@ const sentMessages = async (sender) => {
   return allMessage;
 };
 
-//createDepartmemnt
+//create Account
 
 const createUser = async (name, username, password, email, role) => {
   const referrenceId = Math.floor(Math.random() * 98765 + 1234);
   const encryptedPassword = await bcrypt.hash(password, saltRounds);
+  let registeredRoles = await getAccounts();
+  let existRole = registeredRoles.find((user) => user.role == role);
+
+  if (existRole) {
+    return "Selected role is active ";
+  }
+
+  let admin = role == "student" || role == "lecturer" ? false : true;
   await collection.insertOne({
     id: referrenceId,
     name: name,
@@ -38,9 +48,34 @@ const createUser = async (name, username, password, email, role) => {
     role: role,
     verification: false,
     messages: [],
+    connects: [],
     outbox: [],
+    mention: [],
+    admin: admin,
+    request: [],
   });
-  return User(username);
+  return {
+    response: "Account successfully created",
+    data: await User(username),
+  };
+};
+
+const mentionUser = async (user, action, heading, body, date) => {
+  const updateStatus = await collection.updateOne(
+    { username: user },
+    {
+      $push: {
+        mention: {
+          action: action,
+          heading: heading,
+          body: body,
+          date: date,
+          reacted: false,
+        },
+      },
+    }
+  );
+  return updateStatus;
 };
 
 //sendMessage func
@@ -206,85 +241,54 @@ async function createPost(sender, body) {
   return getPosts();
 }
 
-const findPost = async (id) => {
-  const post = await generalPost.findOne({ id: id });
-  return post;
-};
-
-const getPosts = async () => {
-  const allPost = await generalPost.find({}).toArray();
-  return allPost;
-};
-
-const likePost = async (user, id) => {
-  const post = await findPost(id);
-  const likes = post.likes;
-  if (likes.includes(user)) {
-    await generalPost.updateOne({ id: id }, { $pull: { likes: user } });
+const addUser = async (username, connectName, role) => {
+  let id = Math.random(Math.random() * 1234 + 985);
+  const user = await User(username);
+  let existingUsers = user["connects"];
+  const userAccount = existingUsers.find(
+    (account) => account.username == connectName
+  );
+  if (username == connectName) {
+    return "forbidden to add yourself";
+  } else if (userAccount) {
+    return "user added already exist";
   } else {
-    await generalPost.updateOne({ id: id }, { $push: { likes: user } });
+    const status = await collection.updateOne(
+      { username: username },
+      {
+        $push: {
+          connects: {
+            id: id,
+            username: connectName,
+            role: role,
+            requestStatus: false,
+          },
+        },
+      }
+    );
+    let name = await User(username);
+    await collection.updateOne(
+      {
+        username: connectName,
+      },
+      {
+        $push: {
+          request: { id: id, name: name.name, role: name.role },
+        },
+      }
+    );
+    return "new user added";
   }
 };
 
-const commentPost = async (user, postId, message) => {
-  const comment = await generalPost.updateOne(
-    { id: postId },
-    { $push: { comments: { user: user, message: message } } }
-  );
-  return comment;
-};
-
-function personel(name, password, role) {
-  return {
-    name,
-    role,
-    connects: new Array(),
-    joinAdmin: async function () {
-      let encryptedPassword = await bcrypt.hash(password, saltRounds);
-      const newMemeber = await collection.insertOne({
-        id: Math.floor(Math.random() * 2023 + 2321),
-        name: this.name,
-        role: this.role,
-        password: encryptedPassword,
-        connects: this.connects,
-      });
-      return newMemeber;
-    },
-
-    addCircle: async function (user) {
-      const newUser = await collection.updateOne(
-        { id: this.id },
-        { $push: { connects: user } }
-      );
-      return newUser;
-    },
-    findConnect: async function (id) {
-      let user = await collection.findOne({ id: this.id });
-      let allConnects = user.connects;
-      let connect = allConnects.find((user) => user.id === id);
-      let response = connect
-        ? `${connect.name}found`
-        : "The user you sought for is not part of your connects";
-      return response;
-    },
-  };
+async function getAccounts() {
+  const accounts = await collection.find({ admin: true }).toArray();
+  return accounts;
 }
-// const Dean = personel(1, "onike", "Dean");
-// // const newAdmin = await Dean.joinAdmin();
-// // const newCircle = await Dean.addCircle({
-// //   id: 2,
-// //   name: "Adewale ayomide ",
-// //   role: "HOD COMPUTER",
-// // });
-// const allConnects = await Dean.findConnect(2);
-// console.log(allConnects);
 
 module.exports = {
-  personel,
-  commentPost,
-  likePost,
-  commentPost,
-  getPosts,
+  getAccounts,
+  mentionUser,
   createPost,
   createUser,
   sentMessages,
@@ -293,4 +297,5 @@ module.exports = {
   User,
   sendMessage,
   getMemos,
+  addUser,
 };
