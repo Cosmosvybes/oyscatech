@@ -17,6 +17,7 @@ const {
   mentionUser,
   createAuthority,
   getAccounts,
+  acceptRequest,
 } = require("./Logic.js");
 const { daVinci } = require("./Davinci.js");
 
@@ -184,6 +185,13 @@ app.get("/api/admins", async (req, res) => {
 app.patch("/api/signout", Auth, (req, res) => {
   res.clearCookie("userToken");
   res.redirect(302, "/");
+});
+
+app.patch("/api/user/accept", Auth, async (req, res) => {
+  const { id, username } = req.body;
+  let user = req.user.payload;
+  const status = await acceptRequest(id, username, user);
+  res.send(status);
 });
 
 app.listen(port, function () {

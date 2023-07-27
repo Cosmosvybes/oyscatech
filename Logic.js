@@ -273,7 +273,13 @@ const addUser = async (username, connectName, role) => {
       },
       {
         $push: {
-          request: { id: id, name: name.name, role: name.role },
+          request: {
+            isConfirmed: false,
+            id: id,
+            name: name.name,
+            role: name.role,
+            username: name.username,
+          },
         },
       }
     );
@@ -286,7 +292,38 @@ async function getAccounts() {
   return accounts;
 }
 
+async function acceptRequest(id, username, peerAccount) {
+  const acceptStatus = await collection.updateOne(
+    { username: username, "connects.id": id },
+    {
+      $set: { "connects.$.requestStatus": true },
+    }
+  );
+  let user = await User(username);
+  await collection.updateOne(
+    { username: user.username },
+    {
+      $push: {
+        connects: {
+          id: id,
+          username: peerAccount,
+          role: user.role,
+          isConfirmed: false,
+        },
+      },
+    }
+  );
+
+  await collection.updateOne(
+    { username: peerAccount, "request.id": id },
+    { $set: { "request.$.isConfirmed": true } }
+  );
+
+  return acceptStatus;
+}
+
 module.exports = {
+  acceptRequest,
   getAccounts,
   mentionUser,
   createPost,
