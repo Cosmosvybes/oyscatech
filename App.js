@@ -58,6 +58,9 @@ function Auth(req, res, next) {
 app.get("/home", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
+app.get("/request", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
+});
 
 app.get("/api/user", Auth, async (req, res) => {
   const name = req.user.payload;
