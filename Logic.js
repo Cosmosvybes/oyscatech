@@ -1,4 +1,4 @@
-// import { MongoClient } from "mongodb";
+//import { MongoClient } from "mongodb";
 // import { config } from "dotenv";
 const { MongoClient } = require("mongodb");
 const { config } = require("dotenv");
@@ -13,7 +13,7 @@ const collection = client.db("Oyscatech").collection("administration");
 const memorandum = client.db("Oyscatech").collection("memo");
 const messages = client.db("Oyscatech").collection("messages");
 const generalPost = client.db("Oyscatech").collection("posts");
-const authorities = client.db("Oyscatech").collection("authorities");
+// const authorities = client.db("Oyscatech").collection("authorities");
 
 const User = async (name) => {
   const user = await collection.findOne({ username: name });
@@ -27,7 +27,6 @@ const sentMessages = async (sender) => {
 };
 
 //create Account
-
 const createUser = async (name, username, password, email, role) => {
   const referrenceId = Math.floor(Math.random() * 98765 + 1234);
   const encryptedPassword = await bcrypt.hash(password, saltRounds);
@@ -53,6 +52,7 @@ const createUser = async (name, username, password, email, role) => {
     mention: [],
     admin: admin,
     request: [],
+    drafts: [],
   });
   return {
     response: "Account successfully created",
@@ -60,23 +60,68 @@ const createUser = async (name, username, password, email, role) => {
   };
 };
 
-const mentionUser = async (user, action, heading, body, date) => {
-  const updateStatus = await collection.updateOne(
-    { username: user },
+const mentionUser = async (user, memoId) => {
+  const userAccount = await User(user);
+  const mentions = userAccount.mention;
+  const existMemo = mentions.find((memo) => memo.id == memoId);
+  if (existMemo) {
+    return "memo already sent in the past, send message! ";
+  } else {
+    await memorandum.updateOne(
+      { id: memoId },
+      {
+        $push: {
+          cc: { id: Math.floor(Math.random() * 323 * 2323), name: user },
+        },
+      }
+    );
+    let newMemo = await getMemo(memoId);
+    await collection.updateOne(
+      { username: user },
+      {
+        $push: {
+          mention: newMemo,
+        },
+      }
+    );
+    return {
+      user: await User(user),
+    };
+  }
+};
+// const mention = await mentionUser("extrofrets", 249136);
+// console.log(mention);
+
+const memoDialogue = async (id, sender, response) => {
+  await memorandum.updateOne(
+    { id: id },
     {
       $push: {
-        mention: {
-          action: action,
-          heading: heading,
-          body: body,
-          date: date,
-          reacted: false,
+        responses: {
+          id: Math.floor(Math.random() * 232 + 2323),
+          message: response,
+          sender: sender,
         },
       },
     }
   );
-  return updateStatus;
+  const memo = await getMemo(id);
+  await collection.updateOne(
+    { username: sender },
+    { $push: { mention: memo } }
+  );
+  return {
+    user: await User(sender),
+    memo: await getMemo(id),
+  };
 };
+
+// const dialogue = await memoDialogue(
+//   248841,
+//   "olatunde",
+//   "okay we shallwork on this on G."
+// );
+// console.log(dialogue);
 
 //sendMessage func
 const sendMessage = async (username, message, sender) => {
@@ -92,7 +137,7 @@ const sendMessage = async (username, message, sender) => {
       hour12: true,
       hour: "numeric",
       year: "2-digit",
-    }),
+    }), 
     message: message,
     readStatus: false,
     sender: sender,
@@ -150,8 +195,8 @@ const sendMessage = async (username, message, sender) => {
   }
 };
 
+
 async function createMemo({
-  cc: cc,
   from: from,
   to: to,
   ref: ref,
@@ -159,6 +204,7 @@ async function createMemo({
   body: body,
 }) {
   const memoId = Math.floor(Math.random() * 862 + 123 * 2023);
+
   const memo = await memorandum.insertOne({
     id: memoId,
     ref: ref,
@@ -176,14 +222,35 @@ async function createMemo({
       year: "2-digit",
     }),
     body: body,
-    cc: cc,
+    cc: [{ id: Math.floor(Math.random() + 2323 + 123), name: from }],
+    responses: [],
   });
-  if (memo) {
-    return "memo successfully created";
+
+  if (memo.insertedId == 1) {
+    return {
+      message: "memo successfully created",
+      data: await getMemo(memoId),
+    };
   } else {
     return "internal error, try again ";
   }
 }
+
+async function draftedMemo(sender) {
+  const allDrafts = memorandum.find({ from: sender }).toArray();
+  return allDrafts;
+}
+
+// const userOneDraft = await draftedMemo("abobi");
+// console.log(userOneDraft);
+// const newMemo = await createMemo({
+//   from: "abobi",
+//   to: "Public Jagbajantise Promax",
+//   ref: "ref/refID-xL",
+//   heading: "The heading",
+//   body: "Some data to store jagbajantify",
+// });
+// console.log(newMemo);
 
 async function getMemos() {
   const memos = memorandum.find({}).toArray();
@@ -192,7 +259,6 @@ async function getMemos() {
 
 async function readMessage(messageId, recipient) {
   const sender = await messages.findOne({ id: messageId });
-
   await messages.updateOne({ id: messageId }, { $set: { readStatus: true } });
 
   await collection.updateOne(
@@ -335,4 +401,6 @@ module.exports = {
   sendMessage,
   getMemos,
   addUser,
+  memoDialogue,
+  draftedMemo, 
 };

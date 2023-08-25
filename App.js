@@ -14,10 +14,13 @@ const {
   sentMessages,
   createUser,
   addUser,
-  mentionUser,
   createAuthority,
   getAccounts,
   acceptRequest,
+  memoDialogue,
+  memoDraft,
+  mentionUser,
+  draftedMemo,
 } = require("./Logic.js");
 const { daVinci } = require("./Davinci.js");
 
@@ -113,10 +116,10 @@ app.post("/api/private/message", Auth, async (req, res) => {
   res.send({ message: data });
 });
 
-app.get("/api/memos", Auth, async (req, res) => {
-  const memos = await getMemos();
-  res.json(memos);
-});
+// app.get("/api/memos", Auth, async (req, res) => {
+//   const memos = await getMemos();
+//   res.json(memos);
+// });
 
 app.get("/api/admin", Auth, (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
@@ -129,9 +132,6 @@ app.post("/api/memo", Auth, async (req, res) => {
 
 app.post("/api/signup", async (req, res) => {
   const { name, email, username, password, role } = req.body;
-  let registeredRoles = await getAccounts();
-  let existRole = registeredRoles.find((user) => user.role == role);
-
   try {
     const existUser = await User(username);
     if (existUser) {
@@ -195,6 +195,29 @@ app.patch("/api/user/accept", Auth, async (req, res) => {
   let user = req.user.payload;
   const status = await acceptRequest(id, username, user);
   res.send(status);
+});
+
+app.patch("/api/mention", Auth, async (req, res) => {
+  const { user, memoId } = req.body;
+  const status = mentionUser(user, memoId);
+  res.send(status);
+});
+
+app.patch("/api/memo/dialogue", Auth, async (req, res) => {
+  const { sender, response, id, resId } = req.body;
+  const status = await memoDialogue(
+    id,
+    req.user.payload,
+    sender,
+    response,
+    resId
+  );
+  res.send(status);
+});
+
+app.get("/api/drafts", Auth, async (req, res) => {
+  const drafts = await draftedMemo(req.user.payload);
+  res.send(drafts);
 });
 
 app.listen(port, function () {
