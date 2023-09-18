@@ -3,7 +3,6 @@
 const { MongoClient } = require("mongodb");
 const { config } = require("dotenv");
 const bcrypt = require("bcrypt");
-const e = require("express");
 const saltRounds = 10;
 
 config();
@@ -137,7 +136,7 @@ const sendMessage = async (username, message, sender) => {
       hour12: true,
       hour: "numeric",
       year: "2-digit",
-    }), 
+    }),
     message: message,
     readStatus: false,
     sender: sender,
@@ -195,7 +194,6 @@ const sendMessage = async (username, message, sender) => {
   }
 };
 
-
 async function createMemo({
   from: from,
   to: to,
@@ -238,7 +236,7 @@ async function createMemo({
 
 async function draftedMemo(sender) {
   const allDrafts = memorandum.find({ from: sender }).toArray();
-  return allDrafts;
+  return { allDrafts };
 }
 
 // const userOneDraft = await draftedMemo("abobi");
@@ -402,5 +400,5 @@ module.exports = {
   getMemos,
   addUser,
   memoDialogue,
-  draftedMemo, 
+  draftedMemo,
 };
