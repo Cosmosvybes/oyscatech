@@ -10,10 +10,8 @@ config();
 const client = new MongoClient(process.env.MONGO_URI);
 
 const collection = client.db("Oyscatech").collection("administration");
-const memorandum = client.db("Oyscatech").collection("memo");
 const messages = client.db("Oyscatech").collection("messages");
-const generalPost = client.db("Oyscatech").collection("posts");
-// const authorities = client.db("Oyscatech").collection("authorities");
+const announcement = client.db("Oyscatech").collection("announcements");
 
 const User = async (name) => {
   const user = await collection.findOne({ username: name });
@@ -59,8 +57,8 @@ const createUser = async (name, username, password, email, role) => {
 };
 
 //create a new memo into the draft
-async function createMemo(heading, from, to, ref, body) {
-  const memoId = Date.now();
+async function createMemo(heading, from, to, ref, body, key) {
+  // const memoId = Date.now();
   const date = new Date().toLocaleString("en-US", {
     year: "numeric",
     month: "numeric",
@@ -74,7 +72,7 @@ async function createMemo(heading, from, to, ref, body) {
     {
       $push: {
         drafts: {
-          id: memoId,
+          key: key,
           date: date,
           heading: heading,
           from: from,
@@ -96,14 +94,14 @@ async function createMemo(heading, from, to, ref, body) {
 const forwardMemo = async (recipient, sender, memoId) => {
   const userAccount = await User(recipient);
   const memoRecieved = userAccount.recievedMemo;
-  const existMemo = memoRecieved.find((memo) => memo.id === memoId);
+
+  const existMemo = memoRecieved.find((memo) => memo.key === memoId);
   if (existMemo) {
     return "memo already sent in the past,send message!";
   } else {
     const memoSender = await User(sender);
     const memoDrafts = memoSender.drafts;
-    const memo = memoDrafts.find((memo) => memo.id === memoId);
-
+    const memo = memoDrafts.find((memo) => memo.key === memoId);
     await collection.updateOne(
       { username: recipient },
       {
@@ -112,20 +110,43 @@ const forwardMemo = async (recipient, sender, memoId) => {
         },
       }
     );
+
     return {
       user: await User(recipient), // return the the user
     };
   }
 };
 
+const shareNextAuthority = async (recipient, sender, memoId, memoCreator) => {
+  const userAccount = await User(recipient);
+  const memoRecieved = userAccount.recievedMemo;
+  const existMemo = memoRecieved.find((memo) => memo.key === memoId);
 
+  if (existMemo) {
+    return "memo sent already!";
+  } else {
+    const memoSender = await User(sender);
+    const memoInbox = memoSender.recievedMemo;
+    const memo = memoInbox.find((memo) => memo.key === memoId);
+
+    const shareStatus = collection.updateOne(
+      { username: recipient },
+      { $push: { recievedMemo: memo } }
+    );
+    collection.updateOne(
+      { role: memoCreator, "drafts.key": memoId },
+      { $push: { "drafts.$.cc": { id: Date.now(), name: recipient } } }
+    );
+    return shareStatus;
+  }
+};
 
 //memo minutes / dialogue function
 const memoDialogue = async (id, user, sender, response) => {
   const responseUpdate = await collection.updateOne(
     {
       username: user,
-      "recievedMemo.id": id,
+      "recievedMemo.key": id,
     },
     {
       $push: {
@@ -139,7 +160,7 @@ const memoDialogue = async (id, user, sender, response) => {
   );
 
   await collection.updateOne(
-    { username: sender, "drafts.id": id },
+    { role: sender, "drafts.key": id },
     {
       $push: {
         "drafts.$.response": {
@@ -153,7 +174,7 @@ const memoDialogue = async (id, user, sender, response) => {
 
   return responseUpdate;
   // return responseUpdate.modifiedCount === 1
-  //   ? { response: "new minutes on memo!! - response sent" }
+  // ? { response: "new minutes on memo!! - response sent" }
   //   : { response: "internal error , try again" };
 };
 
@@ -265,29 +286,20 @@ async function readMessage(messageId, recipient) {
 }
 
 async function getMemo(id) {
-  const memo = await memorandum.findOne({ id: id });
+  const memo = await announcement.findOne({ id: id });
   return memo;
 }
 
-// async function createPost(sender, body) {
-//   const id = Math.floor(Math.random() * 1234 * 9983);
-//   const post = await generalPost.insertOne({
-//     id: id,
-//     body: body,
-//     sender: sender,
-//     date: new Date().toLocaleString("en-Us", {
-//       year: "2-digit",
-//       day: "numeric",
-//       month: "short",
-//       hour: "numeric",
-//       minute: "numeric",
-//       second: "numeric",
-//     }),
-//     likes: [],
-//     comments: [],
-//   });
-//   return getPosts();
-// }
+async function announceMemo(sender, memoKey) {
+  const announcer = await User(sender);
+  const memoToShare = announcer.drafts.find((memo) => memo.key === memoKey);
+  const existMemo = await getMemo(memoKey);
+  if (existMemo) {
+    return "existing news";
+  }
+  const insertStatus = announcement.insertOne(memoToShare);
+  return insertStatus;
+}
 
 // new user to your connects
 const addUser = async (username, connectName, role) => {
@@ -363,7 +375,6 @@ async function acceptRequest(id, username, peerAccount) {
     { username: peerAccount, "request.id": id },
     { $set: { "request.$.isConfirmed": true } }
   );
-
   return acceptStatus;
 }
 
@@ -372,7 +383,14 @@ async function getAccounts() {
   return accounts;
 }
 
+const getAllNews = async () => {
+  const allAnnouncement = await announcement.find({}).toArray();
+  return allAnnouncement;
+};
+
 module.exports = {
+  getAllNews,
+  shareNextAuthority,
   acceptRequest,
   getAccounts,
   forwardMemo,
@@ -386,4 +404,5 @@ module.exports = {
   addUser,
   memoDialogue,
   draftedMemo,
+  announceMemo,
 };

@@ -7,9 +7,9 @@ const { config } = require("dotenv");
 const cookieParser = require("cookie-parser");
 const {
   sendMessage,
+  getAllNews,
   createMemo,
   User,
-  getMemos,
   readMessage,
   sentMessages,
   createUser,
@@ -18,9 +18,10 @@ const {
   getAccounts,
   acceptRequest,
   memoDialogue,
-  memoDraft,
+  shareNextAuthority,
   forwardMemo,
   draftedMemo,
+  announceMemo,
 } = require("./Logic.js");
 const { daVinci } = require("./Davinci.js");
 
@@ -85,29 +86,33 @@ app.get("/api/mymessage", Auth, async (req, res) => {
 
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
-  const user = await User(username);
-  if (user) {
-    const matchPass = await bcrypt.compare(password, user.password);
-    if (matchPass) {
-      const jwt_ = jwt.sign(
-        {
-          payload: user.username,
-        },
-        process.env.SECRET_KEY,
-        {
-          expiresIn: "2 days",
-        }
-      );
-      res.cookie("userToken", jwt_, { maxAge: 9000000, path: "/api/" });
-      res.setHeader("Content-Type", "Text/html");
-      res.redirect(302, "/api/user");
+  try {
+    const user = await User(username);
+    if (user) {
+      const matchPass = await bcrypt.compare(password, user.password);
+      if (matchPass) {
+        const jwt_ = jwt.sign(
+          {
+            payload: user.username,
+          },
+          process.env.SECRET_KEY,
+          {
+            expiresIn: "2 days",
+          }
+        );
+        res.cookie("userToken", jwt_, { maxAge: 9000000, path: "/api/" });
+        res.setHeader("Content-Type", "Text/html");
+        res.redirect(302, "/api/user");
+      } else {
+        res.send({ response: "invalid password", signinStatus: false });
+        return;
+      }
     } else {
-      res.send({ response: "invalid password", signinStatus: false });
+      res.send({ response: "User not found", signinStatus: false });
       return;
     }
-  } else {
-    res.send({ response: "User not found", signinStatus: false });
-    return;
+  } catch (error) {
+    res.send({ response: "inernal error, failed to sign in" });
   }
 });
 
@@ -122,10 +127,10 @@ app.get("/api/admin", Auth, (req, res) => {
 });
 
 app.post("/api/memo", Auth, async (req, res) => {
-  const { heading, from, to, ref, body } = req.body;
+  const { heading, from, to, ref, body, key } = req.body;
+  console.log(req.body);
   try {
-    console.log(req.body);
-    const data = await createMemo(heading, from, to, ref, body);
+    const data = await createMemo(heading, from, to, ref, body, key);
     res.send(data);
   } catch (error) {
     res.send(error);
@@ -150,6 +155,22 @@ app.patch("/api/memo/dialogue", Auth, async (req, res) => {
     res.send(status);
   } catch (error) {
     res.send(error);
+  }
+});
+
+app.patch("/api/share", Auth, async (req, res) => {
+  const { recipient, memoId, memoCreator } = req.body;
+  console.log(recipient, memoId, memoCreator, req.user.payload);
+  try {
+    const data = await shareNextAuthority(
+      recipient,
+      req.user.payload,
+      memoId,
+      memoCreator
+    );
+    res.send({ response: "memo successfully forwarded!", data });
+  } catch (error) {
+    res.send({ response: "memo could not be shared, internal error" });
   }
 });
 
@@ -218,6 +239,32 @@ app.get("/api/admins", async (req, res) => {
 app.get("/api/drafts", Auth, async (req, res) => {
   const drafts = await draftedMemo(req.user.payload);
   res.send(drafts);
+});
+
+app.post("/api/announcepage", Auth, async (req, res) => {
+  const { memoKey } = req.body;
+  try {
+    const data = await announceMemo(req.user.payload, memoKey);
+    res.send({
+      response: "memo successfully sent to the announcement page",
+      data,
+    });
+    console.log(data);
+  } catch (error) {
+    res.send({
+      response: "internal error, unable be share to the anouncement page",
+      error,
+    });
+  }
+});
+
+app.get("/api/announcement", async (req, res) => {
+  try {
+    const allData = await getAllNews();
+    res.send(allData);
+  } catch (error) {
+    res.send(error);
+  }
 });
 
 app.delete("/api/signout", Auth, (req, res) => {
