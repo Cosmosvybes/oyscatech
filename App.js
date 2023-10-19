@@ -20,8 +20,8 @@ const {
   memoDialogue,
   shareNextAuthority,
   forwardMemo,
-  draftedMemo,
   announceMemo,
+  deleteMemo,
 } = require("./Logic.js");
 const { daVinci } = require("./Davinci.js");
 
@@ -128,7 +128,6 @@ app.get("/api/admin", Auth, (req, res) => {
 
 app.post("/api/memo", Auth, async (req, res) => {
   const { heading, from, to, ref, body, key } = req.body;
-  console.log(req.body);
   try {
     const data = await createMemo(heading, from, to, ref, body, key);
     res.send(data);
@@ -139,7 +138,7 @@ app.post("/api/memo", Auth, async (req, res) => {
 
 app.patch("/api/forwardmemo", Auth, async (req, res) => {
   const { recipient, memoId } = req.body;
-  console.log(req.body);
+
   try {
     const status = await forwardMemo(recipient, req.user.payload, memoId);
     res.send({ response: "memo successfully forwarded", status });
@@ -160,7 +159,7 @@ app.patch("/api/memo/dialogue", Auth, async (req, res) => {
 
 app.patch("/api/share", Auth, async (req, res) => {
   const { recipient, memoId, memoCreator } = req.body;
-  console.log(recipient, memoId, memoCreator, req.user.payload);
+ 
   try {
     const data = await shareNextAuthority(
       recipient,
@@ -236,17 +235,12 @@ app.get("/api/admins", async (req, res) => {
   res.send(accounts);
 });
 
-app.get("/api/drafts", Auth, async (req, res) => {
-  const drafts = await draftedMemo(req.user.payload);
-  res.send(drafts);
-});
-
 app.post("/api/announcepage", Auth, async (req, res) => {
   const { memoKey } = req.body;
   try {
     const data = await announceMemo(req.user.payload, memoKey);
     res.send({
-      response: "memo successfully sent to the announcement page",
+      response: "memo successfully posted",
       data,
     });
     console.log(data);
@@ -264,6 +258,16 @@ app.get("/api/announcement", async (req, res) => {
     res.send(allData);
   } catch (error) {
     res.send(error);
+  }
+});
+
+app.delete("/api/delete", Auth, async (req, res) => {
+  const { memoId } = req.body;
+  try {
+    const deleteStatus = await deleteMemo(req.user.payload, memoId);
+    res.send({ response: "memo deleted successfully", deleteStatus });
+  } catch (error) {
+    res.send({ response: "Error occured", error });
   }
 });
 

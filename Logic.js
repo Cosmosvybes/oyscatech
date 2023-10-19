@@ -249,11 +249,6 @@ const sendMessage = async (username, message, sender) => {
   }
 };
 
-async function draftedMemo(sender) {
-  const allDrafts = memorandum.find({ from: sender }).toArray();
-  return { allDrafts };
-}
-
 async function getMemos() {
   const memos = memorandum.find({}).toArray();
   return memos;
@@ -388,7 +383,19 @@ const getAllNews = async () => {
   return allAnnouncement;
 };
 
+const deleteMemo = async (user, memoKey) => {
+  const userAcc = await User(user);
+  const userDrafts = userAcc.drafts;
+  const memoData = userDrafts.find((memo) => memo.key == memoKey);
+  const status = collection.updateOne(
+    { username: user },
+    { $pull: { drafts: memoData } }
+  );
+  return status;
+};
+
 module.exports = {
+  deleteMemo,
   getAllNews,
   shareNextAuthority,
   acceptRequest,
@@ -403,6 +410,5 @@ module.exports = {
   getMemos,
   addUser,
   memoDialogue,
-  draftedMemo,
   announceMemo,
 };
