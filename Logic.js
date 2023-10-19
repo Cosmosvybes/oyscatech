@@ -302,7 +302,7 @@ const addUser = async (username, connectName, role) => {
   const user = await User(username);
   let existingUsers = user["connects"];
   const userAccount = existingUsers.find(
-    (account) => account.username == connectName
+    (account) => account.username === connectName
   );
   if (username == connectName) {
     return "sorry, you can't add yourself";
@@ -351,21 +351,6 @@ async function acceptRequest(id, username, peerAccount) {
       $set: { "connects.$.requestStatus": true },
     }
   );
-  let user = await User(username);
-  await collection.updateOne(
-    { username: user.username },
-    {
-      $push: {
-        connects: {
-          id: id,
-          username: peerAccount,
-          role: user.role,
-          isConfirmed: false,
-        },
-      },
-    }
-  );
-
   await collection.updateOne(
     { username: peerAccount, "request.id": id },
     { $set: { "request.$.isConfirmed": true } }
