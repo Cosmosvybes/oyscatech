@@ -64,7 +64,7 @@ app.get("/home", (req, res) => {
 });
 
 app.get("/api/drafts", (req, res) => {
-  res.sendFile(path.join(__dirname, "dist", "idex.html"));
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 app.get("/request", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
