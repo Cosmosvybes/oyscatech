@@ -63,6 +63,9 @@ app.get("/home", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
+app.get("/api/drafts", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "idex.html"));
+});
 app.get("/request", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
@@ -159,7 +162,7 @@ app.patch("/api/memo/dialogue", Auth, async (req, res) => {
 
 app.patch("/api/share", Auth, async (req, res) => {
   const { recipient, memoId, memoCreator } = req.body;
- 
+
   try {
     const data = await shareNextAuthority(
       recipient,
