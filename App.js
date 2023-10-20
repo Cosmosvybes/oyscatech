@@ -69,6 +69,21 @@ app.get("/drafts", (req, res) => {
 app.get("/request", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
+app.get("/feed", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
+});
+app.get("/memorecieved", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
+});
+app.get("/authority", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
+});
+app.get("/mention", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
+});
+app.get("/message", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
+});
 
 app.get("/api/user", Auth, async (req, res) => {
   const name = req.user.payload;
