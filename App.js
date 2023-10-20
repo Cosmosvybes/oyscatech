@@ -59,6 +59,9 @@ function Auth(req, res, next) {
   next();
 }
 
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
+});
 app.get("/home", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
@@ -156,7 +159,7 @@ app.post("/api/memo", Auth, async (req, res) => {
 
 app.patch("/api/forwardmemo", Auth, async (req, res) => {
   const { recipient, memoId } = req.body;
-  console.log(req.body);
+
   try {
     const status = await forwardMemo(recipient, req.user.payload, memoId);
     res.send({ response: "memo successfully forwarded", status });
@@ -164,6 +167,7 @@ app.patch("/api/forwardmemo", Auth, async (req, res) => {
     res.send({ response: "internal error, Unable to forward memo", error });
   }
 });
+
 
 app.patch("/api/memo/dialogue", Auth, async (req, res) => {
   const { response, id, sender } = req.body;

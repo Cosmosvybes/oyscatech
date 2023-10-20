@@ -93,6 +93,7 @@ async function createMemo(heading, from, to, ref, body, key) {
 
 const forwardMemo = async (recipient, sender, memoId) => {
   const userAccount = await User(recipient);
+  const role = userAccount.role;
   const memoRecieved = userAccount.recievedMemo;
 
   const existMemo = memoRecieved.find((memo) => memo.key === memoId);
@@ -110,12 +111,13 @@ const forwardMemo = async (recipient, sender, memoId) => {
         },
       }
     );
-     collection.updateOne(
-       { role: sender, "drafts.key": memoId },
-       { $push: { "drafts.$.cc": { id: Date.now(), name: userAccount.role } } }
-     );
+    const status = collection.updateOne(
+      { username: sender, "drafts.key": memoId },
+      { $push: { "drafts.$.cc": { id: Date.now(), name: role } } }
+    );
 
     return {
+      status,
       user: await User(recipient), // return the the user
     };
   }
@@ -123,6 +125,7 @@ const forwardMemo = async (recipient, sender, memoId) => {
 
 const shareNextAuthority = async (recipient, sender, memoId, memoCreator) => {
   const userAccount = await User(recipient);
+  const role = userAccount.role;
   const memoRecieved = userAccount.recievedMemo;
   const existMemo = memoRecieved.find((memo) => memo.key === memoId);
 
@@ -138,12 +141,14 @@ const shareNextAuthority = async (recipient, sender, memoId, memoCreator) => {
       { $push: { recievedMemo: memo } }
     );
     collection.updateOne(
-      { role: memoCreator, "drafts.key": memoId },
-      { $push: { "drafts.$.cc": { id: Date.now(), name: userAccount.role } } }
+      { username: memoCreator, "drafts.key": memoId },
+      { $push: { "drafts.$.cc": { id: Date.now(), name: role } } }
     );
     return shareStatus;
   }
 };
+
+
 
 //memo minutes / dialogue function
 const memoDialogue = async (id, user, sender, response) => {
