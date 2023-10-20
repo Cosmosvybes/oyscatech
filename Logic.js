@@ -110,6 +110,10 @@ const forwardMemo = async (recipient, sender, memoId) => {
         },
       }
     );
+     collection.updateOne(
+       { role: sender, "drafts.key": memoId },
+       { $push: { "drafts.$.cc": { id: Date.now(), name: recipient } } }
+     );
 
     return {
       user: await User(recipient), // return the the user
