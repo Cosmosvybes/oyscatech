@@ -85,7 +85,7 @@ app.get("/message", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
-app.get("/memorecieved", (rea, res) => {
+app.get("/memoreceived", (rea, res) => {
   res.sendFile(path.join(__dirname + "dist", "index.html"));
 });
 
