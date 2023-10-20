@@ -112,7 +112,7 @@ const forwardMemo = async (recipient, sender, memoId) => {
     );
      collection.updateOne(
        { role: sender, "drafts.key": memoId },
-       { $push: { "drafts.$.cc": { id: Date.now(), name: recipient } } }
+       { $push: { "drafts.$.cc": { id: Date.now(), name: userAccount.role } } }
      );
 
     return {
@@ -139,7 +139,7 @@ const shareNextAuthority = async (recipient, sender, memoId, memoCreator) => {
     );
     collection.updateOne(
       { role: memoCreator, "drafts.key": memoId },
-      { $push: { "drafts.$.cc": { id: Date.now(), name: recipient } } }
+      { $push: { "drafts.$.cc": { id: Date.now(), name: userAccount.role } } }
     );
     return shareStatus;
   }

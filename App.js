@@ -85,9 +85,6 @@ app.get("/message", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
-
-
-
 app.get("/api/user", Auth, async (req, res) => {
   const name = req.user.payload;
   try {
@@ -159,7 +156,7 @@ app.post("/api/memo", Auth, async (req, res) => {
 
 app.patch("/api/forwardmemo", Auth, async (req, res) => {
   const { recipient, memoId } = req.body;
-
+  console.log(req.body);
   try {
     const status = await forwardMemo(recipient, req.user.payload, memoId);
     res.send({ response: "memo successfully forwarded", status });
