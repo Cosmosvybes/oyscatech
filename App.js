@@ -2,9 +2,11 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
-
+const bcrypt = require("bcrypt");
+const { mailTransporter } = require("./Mailer.js");
 const { config } = require("dotenv");
 const cookieParser = require("cookie-parser");
+const saltRounds = 12;
 const {
   sendMessage,
   getAllNews,
@@ -14,7 +16,9 @@ const {
   sentMessages,
   createUser,
   addUser,
+  compareCodes,
   createAuthority,
+  forgetPassword,
   getAccounts,
   acceptRequest,
   memoDialogue,
@@ -30,7 +34,7 @@ config();
 const port = process.env.PORT || 2006;
 const path = require("path");
 
-const bcrypt = require("bcrypt");
+// const bcrypt = require("bcrypt");
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -56,6 +60,15 @@ function Auth(req, res, next) {
   const data = jwt.verify(token, process.env.SECRET_KEY);
   req.user = data;
 
+  next();
+}
+function verificationAuth(req, res, next) {
+  const codeToken = req.cookies.code;
+  if (!codeToken) {
+    res.send("unauthorized user");
+  }
+  const codeData = jwt.verify(codeToken, process.env.SECRET_KEY);
+  req.verify = codeData;
   next();
 }
 
@@ -167,7 +180,6 @@ app.patch("/api/forwardmemo", Auth, async (req, res) => {
     res.send({ response: "internal error, Unable to forward memo", error });
   }
 });
-
 
 app.patch("/api/memo/dialogue", Auth, async (req, res) => {
   const { response, id, sender } = req.body;
@@ -296,6 +308,60 @@ app.delete("/api/delete", Auth, async (req, res) => {
 app.delete("/api/signout", Auth, (req, res) => {
   res.clearCookie("userToken");
   res.redirect(302, "/");
+});
+
+app.post("/api/forgotpassword", async (req, res) => {
+  const { email } = req.body;
+  const user = await forgetPassword(email);
+  if (user) {
+    try {
+      const verificatonCode = `${Math.floor(Math.random() * 728975)}`;
+
+      const info = await mailTransporter.sendMail({
+        from: "Oysciety",
+        to: email,
+        subject: "Verification Code",
+        html: `<p> Dear ${email} your password recovery code is ${verificatonCode} </p>`,
+      });
+      const codetoken = jwt.sign(
+        { payload: { verificatonCode, email } },
+        process.env.SECRET_KEY,
+        { expiresIn: "1hr" }
+      );
+
+      res.cookie("code", codetoken, {
+        maxAge: 9000000,
+        path: "/api/recovery",
+      });
+
+      res.send({
+        response: `Verification code sent to ${email} `,
+        id: info.messageId,
+      });
+    } catch (error) {
+      res.send({ response: "internal error", error });
+    }
+  } else {
+    res.send({ response: `${email} not found` });
+  }
+});
+
+app.post("/api/recovery", verificationAuth, async (req, res) => {
+  const code = req.verify;
+  const { userCode, newPassword } = req.body;
+  const { verificatonCode, email } = code.payload;
+  const encryptedPassword = await bcrypt.hash(newPassword, saltRounds);
+  try {
+    const changeStatus = await compareCodes(
+      userCode,
+      verificatonCode,
+      email,
+      encryptedPassword
+    );
+    res.send({ reponse: changeStatus });
+  } catch (error) {
+    res.send(error);
+  }
 });
 
 app.listen(port, function () {

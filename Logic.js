@@ -1,9 +1,11 @@
 // import { MongoClient } from "mongodb";
 // import { config } from "dotenv";
 // import bcrypt from "bcrypt";
+// import mailTransporter from "./Mailer.js";
 const { MongoClient } = require("mongodb");
 const { config } = require("dotenv");
 const bcrypt = require("bcrypt");
+
 const saltRounds = 10;
 
 config();
@@ -147,8 +149,6 @@ const shareNextAuthority = async (recipient, sender, memoId, memoCreator) => {
     return shareStatus;
   }
 };
-
-
 
 //memo minutes / dialogue function
 const memoDialogue = async (id, user, sender, response) => {
@@ -387,8 +387,33 @@ const deleteMemo = async (user, memoKey) => {
   );
   return status;
 };
+const getUserByEmail = async (email) => {
+  const user = await collection.findOne({ email: email });
+  return user;
+};
+
+const forgetPassword = async (email) => {
+  const userExist = await getUserByEmail(email);
+  return userExist;
+};
+
+const compareCodes = async (recievedCode, serverCode, email, newPassword) => {
+  if (recievedCode == serverCode) {
+    const newPasswordStatus = await collection.updateOne(
+      {
+        email: email,
+      },
+      { $set: { password: newPassword } }
+    );
+    return `Password Successfully changed`;
+  } else {
+    return `Attempts failed`;
+  }
+};
 
 module.exports = {
+  compareCodes,
+  forgetPassword,
   deleteMemo,
   getAllNews,
   shareNextAuthority,
