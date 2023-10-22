@@ -101,6 +101,10 @@ app.get("/message", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
+app.get("/forgotpassword", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
+});
+
 app.get("/api/user", Auth, async (req, res) => {
   const name = req.user.payload;
   try {
