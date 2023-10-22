@@ -358,7 +358,7 @@ app.post("/api/recovery", verificationAuth, async (req, res) => {
       email,
       encryptedPassword
     );
-    res.send({ reponse: changeStatus });
+    res.send({ response: changeStatus });
   } catch (error) {
     res.send(error);
   }
