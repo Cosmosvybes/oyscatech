@@ -59,9 +59,9 @@ function Auth(req, res, next) {
   }
   const data = jwt.verify(token, process.env.SECRET_KEY);
   req.user = data;
-
   next();
 }
+
 function verificationAuth(req, res, next) {
   const codeToken = req.cookies.code;
   if (!codeToken) {
@@ -138,7 +138,11 @@ app.post("/api/login", async (req, res) => {
             expiresIn: "2 days",
           }
         );
-        res.cookie("userToken", jwt_, { maxAge: 9000000, path: "/api/" });
+        res.cookie("userToken", jwt_, {
+          maxAge: 9000000,
+          path: "/api/",
+          httpOnly: false,
+        });
         res.setHeader("Content-Type", "Text/html");
         res.redirect(302, "/api/user");
       } else {
@@ -309,11 +313,6 @@ app.delete("/api/delete", Auth, async (req, res) => {
   }
 });
 
-app.delete("/api/signout", Auth, (req, res) => {
-  res.clearCookie("userToken");
-  res.redirect(302, "/");
-});
-
 app.post("/api/forgotpassword", async (req, res) => {
   const { email } = req.body;
   const user = await forgetPassword(email);
@@ -366,6 +365,12 @@ app.post("/api/recovery", verificationAuth, async (req, res) => {
   } catch (error) {
     res.send(error);
   }
+});
+
+app.post("/api/signout", Auth, (req, res) => {
+  res.clearCookie("userToken");
+  res.cookie("userToken", "", { maxAge: 0, path: "/api" });
+  res.send({ response: "account signed out successfully" });
 });
 
 app.listen(port, function () {
