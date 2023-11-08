@@ -1,38 +1,38 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
-const { mailTransporter } = require("./Mailer.js");
+
 const { config } = require("dotenv");
 const cookieParser = require("cookie-parser");
-const saltRounds = 12;
-const {
-  sendMessage,
-  getAllNews,
-  createMemo,
-  User,
-  readMessage,
-  sentMessages,
-  createUser,
-  addUser,
-  compareCodes,
-  createAuthority,
-  forgetPassword,
-  getAccounts,
-  acceptRequest,
-  memoDialogue,
-  shareNextAuthority,
-  forwardMemo,
-  announceMemo,
-  deleteMemo,
-} = require("./Logic.js");
-const { daVinci } = require("./Davinci.js");
 
 config();
+const { daVinci } = require("./Utils/Davinci.js");
+const {
+  signIn,
+  userApi,
+  myMessage,
+  createMessage,
+  createNewMemo,
+  fwdMemo,
+  createDialogue,
+  shareNext,
+  acceptReq,
+  signup,
+  readNewMessage,
+  addNewUser,
+  getAdmins,
+  announce,
+  getAllUpdates,
+  passwordRecovery,
+  forgotPassword,
+  deleteMyMemo,
+  signout,
+} = require("./api/Api");
+const { verificationAuth, Auth } = require("./Auths/Auth.js");
 
 const port = process.env.PORT || 2006;
 const path = require("path");
+// const { getAllNews } = require("./Controllers/Logic");
 
 // const bcrypt = require("bcrypt");
 
@@ -51,26 +51,6 @@ app.use((req, res, next) => {
 });
 
 app.use(express.static(path.join(__dirname, "dist")));
-
-function Auth(req, res, next) {
-  const token = req.cookies.userToken;
-  if (!token) {
-    res.send({ response: "unauthorized user, sign in to your account" });
-  }
-  const data = jwt.verify(token, process.env.SECRET_KEY);
-  req.user = data;
-  next();
-}
-
-function verificationAuth(req, res, next) {
-  const codeToken = req.cookies.code;
-  if (!codeToken) {
-    res.send("unauthorized user");
-  }
-  const codeData = jwt.verify(codeToken, process.env.SECRET_KEY);
-  req.verify = codeData;
-  next();
-}
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
@@ -105,273 +85,63 @@ app.get("/forgotpassword", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
-app.get("/api/user", Auth, async (req, res) => {
-  const name = req.user.payload;
-  try {
-    const user = await User(name);
-    if (user) {
-      res.json(user);
-    }
-  } catch (error) {
-    res.send(error);
-  }
-});
+app.get("/api/user", Auth, userApi);
 
-app.get("/api/mymessage", Auth, async (req, res) => {
-  const messages = await sentMessages(req.user.name);
-  res.send(messages);
-});
+app.get("/api/mymessage", Auth, myMessage);
 
-app.post("/api/login", async (req, res) => {
-  const { username, password } = req.body;
-  try {
-    const user = await User(username);
-    if (user) {
-      const matchPass = await bcrypt.compare(password, user.password);
-      if (matchPass) {
-        const jwt_ = jwt.sign(
-          {
-            payload: user.username,
-          },
-          process.env.SECRET_KEY,
-          {
-            expiresIn: "2 days",
-          }
-        );
-        res.cookie("userToken", jwt_, {
-          maxAge: 9000000,
-          path: "/api/",
-          httpOnly: false,
-        });
-        res.setHeader("Content-Type", "Text/html");
-        res.redirect(302, "/api/user");
-      } else {
-        res.send({ response: "invalid password", signinStatus: false });
-        return;
-      }
-    } else {
-      res.send({ response: "User not found", signinStatus: false });
-      return;
-    }
-  } catch (error) {
-    res.send({ response: "inernal error, failed to sign in" });
-  }
-});
+app.post("/api/login", signIn);
 
-app.post("/api/private/message", Auth, async (req, res) => {
-  const { username, message } = req.body;
-  const data = await sendMessage(username, message, req.user.payload);
-  res.send({ message: data });
-});
+app.post("/api/private/message", Auth, createMessage);
 
 app.get("/api/admin", Auth, (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
-app.post("/api/memo", Auth, async (req, res) => {
-  const { heading, from, to, ref, body, key } = req.body;
-  try {
-    const data = await createMemo(heading, from, to, ref, body, key);
-    res.send(data);
-  } catch (error) {
-    res.send(error);
-  }
-});
+app.post("/api/memo", Auth, createNewMemo);
 
-app.patch("/api/forwardmemo", Auth, async (req, res) => {
-  const { recipient, memoId } = req.body;
+app.patch("/api/forwardmemo", Auth, fwdMemo);
 
-  try {
-    const status = await forwardMemo(recipient, req.user.payload, memoId);
-    res.send({ response: "memo successfully forwarded", status });
-  } catch (error) {
-    res.send({ response: "internal error, Unable to forward memo", error });
-  }
-});
+app.patch("/api/memo/dialogue", Auth, createDialogue);
 
-app.patch("/api/memo/dialogue", Auth, async (req, res) => {
-  const { response, id, sender } = req.body;
-  try {
-    const status = await memoDialogue(id, req.user.payload, sender, response);
-    res.send(status);
-  } catch (error) {
-    res.send(error);
-  }
-});
+app.patch("/api/share", Auth, shareNext);
 
-app.patch("/api/share", Auth, async (req, res) => {
-  const { recipient, memoId, memoCreator } = req.body;
+app.patch("/api/user/accept", Auth, acceptReq);
 
-  try {
-    const data = await shareNextAuthority(
-      recipient,
-      req.user.payload,
-      memoId,
-      memoCreator
-    );
-    res.send({ response: "memo successfully forwarded!", data });
-  } catch (error) {
-    res.send({ response: "memo could not be shared, internal error" });
-  }
-});
+app.post("/api/signup", signup);
 
-app.patch("/api/user/accept", Auth, async (req, res) => {
-  const { id, username } = req.body;
-  let user = req.user.payload;
-  const status = await acceptRequest(id, username, user);
-  res.send(status);
-});
+app.patch("/api/private/readmessage", Auth, readNewMessage);
 
-app.post("/api/signup", async (req, res) => {
-  const { name, email, username, password, role } = req.body;
-  try {
-    const existUser = await User(username);
-    if (existUser) {
-      res.send({ response: "username is taken" });
-    } else {
-      let result = await createUser(name, username, password, email, role);
-      res.send({
-        response: result,
-      });
-    }
-  } catch (error) {
-    res.send(error);
-  }
-});
+// app.post("/api/askvinci", async (req, res) => {
+//   const { question } = req.body;
+//   try {
+//     const answer = await daVinci(question);
+//     res.send(answer);
+//   } catch (error) {
+//     res.send(error);
+//   }
+// });
 
-app.patch("/api/private/readmessage", Auth, async (req, res) => {
-  const { messageId } = req.body;
-  const status = await readMessage(messageId, req.user.payload);
-  res.send(status);
-});
+app.patch("/api/add", Auth, addNewUser);
 
-app.post("/api/askvinci", async (req, res) => {
-  const { question } = req.body;
-  try {
-    const answer = await daVinci(question);
-    res.send(answer);
-  } catch (error) {
-    res.send(error);
-  }
-});
+// app.post("/api/authorities/signup", async (req, res) => {
+//   const { name, role } = req.body;
+//   const status = await createAuthority(name, role);
+//   res.send(status);
+// });
 
-app.patch("/api/add", Auth, async (req, res) => {
-  const { connectName, role } = req.body;
-  const name = req.user.payload;
-  try {
-    const addStatus = await addUser(name, connectName, role);
-    res.send({ response: addStatus });
-  } catch (error) {
-    res.send(error);
-  }
-});
+app.get("/api/admins", getAdmins);
 
-app.post("/api/authorities/signup", async (req, res) => {
-  const { name, role } = req.body;
-  const status = await createAuthority(name, role);
-  res.send(status);
-});
+app.post("/api/announcepage", Auth, announce);
 
-app.get("/api/admins", async (req, res) => {
-  const accounts = await getAccounts();
-  res.send(accounts);
-});
+app.get("/api/announcement", getAllUpdates);
 
-app.post("/api/announcepage", Auth, async (req, res) => {
-  const { memoKey } = req.body;
-  try {
-    const data = await announceMemo(req.user.payload, memoKey);
-    res.send({
-      response: "memo successfully posted",
-      data,
-    });
-    console.log(data);
-  } catch (error) {
-    res.send({
-      response: "internal error, unable be share to the anouncement page",
-      error,
-    });
-  }
-});
+app.delete("/api/delete", Auth, deleteMyMemo);
 
-app.get("/api/announcement", async (req, res) => {
-  try {
-    const allData = await getAllNews();
-    res.send(allData);
-  } catch (error) {
-    res.send(error);
-  }
-});
+app.post("/api/forgotpassword", forgotPassword);
 
-app.delete("/api/delete", Auth, async (req, res) => {
-  const { memoId } = req.body;
-  try {
-    const deleteStatus = await deleteMemo(req.user.payload, memoId);
-    res.send({ response: "memo deleted successfully", deleteStatus });
-  } catch (error) {
-    res.send({ response: "Error occured", error });
-  }
-});
+app.post("/api/recovery", verificationAuth, passwordRecovery);
 
-app.post("/api/forgotpassword", async (req, res) => {
-  const { email } = req.body;
-  const user = await forgetPassword(email);
-  if (user) {
-    try {
-      const verificatonCode = `${Math.floor(Math.random() * 728975)}`;
-
-      const info = await mailTransporter.sendMail({
-        from: "Oysciety",
-        to: email,
-        subject: "Verification Code",
-        html: `<p> Dear ${email} your password recovery code is ${verificatonCode} </p>`,
-      });
-      const codetoken = jwt.sign(
-        { payload: { verificatonCode, email } },
-        process.env.SECRET_KEY,
-        { expiresIn: "1hr" }
-      );
-
-      res.cookie("code", codetoken, {
-        maxAge: 9000000,
-        path: "/api/recovery",
-      });
-
-      res.send({
-        response: `Verification code sent to ${email} `,
-        id: info.messageId,
-      });
-    } catch (error) {
-      res.send({ response: "internal error", error });
-    }
-  } else {
-    res.send({ response: `${email} not found` });
-  }
-});
-
-app.post("/api/recovery", verificationAuth, async (req, res) => {
-  const code = req.verify;
-  const { userCode, newPassword } = req.body;
-  const { verificatonCode, email } = code.payload;
-  const encryptedPassword = await bcrypt.hash(newPassword, saltRounds);
-  try {
-    const changeStatus = await compareCodes(
-      userCode,
-      verificatonCode,
-      email,
-      encryptedPassword
-    );
-    res.send({ response: changeStatus });
-  } catch (error) {
-    res.send(error);
-  }
-});
-
-app.post("/api/signout", Auth, (req, res) => {
-  res.clearCookie("userToken");
-  res.cookie("userToken", "", { maxAge: 0, path: "/api" });
-  res.send({ response: "account signed out successfully" });
-});
+app.post("/api/signout", Auth, signout);
 
 app.listen(port, function () {
   console.log(`Server running on ${port}`);
