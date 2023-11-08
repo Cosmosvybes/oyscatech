@@ -121,7 +121,7 @@ const forwardMemo = async (recipient, sender, memoId) => {
       from: "Oysciety",
       to: userAccount.email,
       subject: "New letter body recieved",
-      html: `<p> A letter is waiting in inbox from ${sender}, sign in to your account to respond to it. </p>`,
+      html: `<p> A letter is waiting in inbox from ${memoSender.role}, sign in to your account to respond to it. </p>`,
     });
 
     return {
@@ -156,7 +156,7 @@ const shareNextAuthority = async (recipient, sender, memoId, memoCreator) => {
       from: "Oysciety",
       to: userAccount.email,
       subject: "New letter body recieved",
-      html: `<p> A letter is waiting in inbox from ${sender}}, sign in to your account to respond to it. </p>`,
+      html: `<p> A letter is waiting in inbox from ${memoSender.role}}, sign in to your account to respond to it. </p>`,
     });
     return shareStatus;
   }
